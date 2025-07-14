@@ -1,0 +1,6 @@
+rich==14.0.0
+discord.py==2.5.2
+playsound3==3.2.4
+python-dotenv==1.1.1
+jishaku==2.6.0
+asqlite==2.0.0
