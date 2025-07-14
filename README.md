@@ -1,8 +1,8 @@
-![Version](https://img.shields.io/badge/version-1.2-red?style=plastic) [![Discord](https://img.shields.io/discord/990326151987724378?logo=discord&logoColor=white&color=5865F2)](https://discord.gg/JaDcEjNyfk) 
-# COSUB
-This is a open source, discord general utilities bot for factions and more. The bot can be used to manage shifts, host trainings and even add points while topped off with a bit of humor.
+![Version](https://img.shields.io/badge/version-0.1.0-blue?style=plastic) [![Discord](https://img.shields.io/discord/990326151987724378?logo=discord&logoColor=white&color=5865F2)](https://discord.gg/BHUxXKwTfA) 
+# cosub
+cosub (short for Catamapp's Open Source Utilities Bot) is a open source discord utilities bot for servers that have a sort of work enviroment and wanted a easy to configure bot.
 
-This bot is open to contributions, just fork the repo and once the changes are done, make a pull request and i will check it.
+This is a open source, discord general utilities bot for factions and more. The bot can be used to manage shifts, host trainings and even add points while topped off with a bit of humor. This bot is open to contributions, just fork the repo and once the changes are done, make a pull request and i will check it.
 > [!NOTE]
 > The bot isn't fully completed yet, there are many commands to add or even debug. Also, this is the dev branch, expect lots of errors.
 # Download
