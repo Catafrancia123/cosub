@@ -1,11 +1,11 @@
-BOTVER = "0.1.0"
-""" Version 0.1.0:
-    - Creation of the bot and rewriting red_order-bot to use in this bot
-    - Better error handling
-    - Compatibility for .env and toml files."""
+BOTVER = "0.1.1"
+""" Version 0.1.1:
+    - More rewrites
+    - Better error handling"""
 
 import discord, datetime, os, sys, asyncio, playsound3, logging, logging.handlers, tomllib, asqlite
 from schemas.saveloader import check_table
+from aiohttp.client_exceptions import ClientConnectorDNSError
 from utils.logs import write_traceback
 from dotenv import load_dotenv
 from extensions import EXT_LIST
@@ -47,30 +47,31 @@ class Bot(commands.Bot):
             title=f"Error {error_code:02d}",
             description=f"{errors[error_code]}",
             color=discord.Color.red(),
+            timestamp=time_format
         )
-        embedvar.set_footer(text=time_format)
         if error_code != 99:
             rprint(f'[grey]{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}[/grey] [[bright_red]ERR {error_code:02d}[/bright_red]] by {username}')
 
         return embedvar
 
     async def setup_hook(self):
-        rprint(f"[grey]{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}[/grey] [[light_green]VERSION[/light_green]] Discord.py version [bright_yellow]{discord.__version__}[/bright_yellow], Bot version [bright_yellow]{BOTVER}[/bright_yellow]")
+        time_format = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        rprint(f"[grey]{time_format}[/grey] [[light_green]VERSION[/light_green]] Discord.py version [bright_yellow]{discord.__version__}[/bright_yellow], Bot version [bright_yellow]{BOTVER}[/bright_yellow]")
         
         for ext in self.ext:
             try:   
                 await self.load_extension(ext.name)
-                rprint(f'[grey]{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}[/grey] [[light_green]SUCCESSFUL[/light_green]] Module \"{ext.name}\" has been loaded.')
+                rprint(f'[grey]{time_format}[/grey] [[light_green]SUCCESSFUL[/light_green]] Module \"{ext.name}\" has been loaded.')
             except Exception as e:               
-                rprint(f'[grey]{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}[/grey] [[bright_red]ERROR[/bright_red]] Module \"{ext.name}\" failed to load.')
+                rprint(f'[grey]{time_format}[/grey] [[bright_red]ERROR[/bright_red]] Module \"{ext.name}\" failed to load.')
                 print(e)
                 write_traceback(e)
     
         await self.load_extension("jishaku")
         await self.tree.sync()
-        rprint(f'[grey]{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}[/grey] [[light_green]SUCCESSFUL[/light_green]] Synced slash commands and loaded jishaku.')
-        rprint(f"[grey]{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}[/grey] [[bright_yellow]WARNING[/bright_yellow]] Please ping catamapp for bot maintenance/unknown errors.")
-        rprint(f'[grey]{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}[/grey] [[light_green]COMPLETE[/light_green]] Bot has completed startup and now can be used.')
+        rprint(f'[grey]{time_format}[/grey] [[light_green]SUCCESSFUL[/light_green]] Synced slash commands and loaded jishaku.')
+        rprint(f"[grey]{time_format}[/grey] [[bright_yellow]WARNING[/bright_yellow]] Please ping catamapp for bot maintenance/unknown errors.")
+        rprint(f'[grey]{time_format}[/grey] [[light_green]COMPLETE[/light_green]] Bot has completed startup and now can be used.')
         try:
             await asyncio.run(playsound3.playsound("sounds/beep.wav"))
         except Exception as e:
@@ -124,6 +125,7 @@ class Bot(commands.Bot):
             
         
 async def main():
+    time_format = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     #* 1. The logger
     logs = ["error", "bot"]
     for log_file in logs:
@@ -142,13 +144,13 @@ async def main():
     formatter = logging.Formatter('[{asctime}] {name}: {message}', dt_fmt, style='{')
     handler.setFormatter(formatter)
     logger.addHandler(handler)
-    rprint(f'[grey]{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}[/grey] [[light_green]SUCCESSFUL[/light_green]] Logger has been set up.')
+    rprint(f'[grey]{time_format}[/grey] [[light_green]SUCCESSFUL[/light_green]] Logger has been set up.')
 
     #* 2. The database
     tables = ["ration", "social_credit"]
     for table in tables:
         await check_table(SAVE, table)
-    rprint(f'[grey]{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}[/grey] [[light_green]SUCCESSFUL[/light_green]] Database (asqlite version {asqlite.__version__}) has been set up.')
+    rprint(f'[grey]{time_format}[/grey] [[light_green]SUCCESSFUL[/light_green]] Database (asqlite version [bright_yellow]{asqlite.__version__}[/bright_yellow]) has been set up.')
 
     #* 3. The startup
     intents = discord.Intents.default()
@@ -158,17 +160,22 @@ async def main():
         command_prefix="$",
         intents=intents,
         allowed_mentions=discord.AllowedMentions(roles=True, users=True, replied_user=True, everyone=True),
-        description="Glory to the Supreme Leader, Parabellum!",
+        description="Check out the code at: https://github.com/Catafrancia123/cosub",
         ext=EXT_LIST, #! <-- The number here represents how much modules is unloaded.
     ) as bot:
-        try:
-            load_dotenv()
-            await bot.start(os.getenv("bot_token"), reconnect=True)
-        except Exception:
+        load_dotenv()
+        data = os.getenv("bot_token")
+        for server in bot.guilds:
+            print(server)
+        if data is None:
             with open("config.toml", "rb") as config:
-                data = tomllib.load(config)
-                await bot.start(data["bot-settings"]["bot_token"], reconnect=True)
+                data = tomllib.load(config)["bot-settings"]["bot_token"]
 
+        try:
+            await bot.start(data, reconnect=True)
+        except ClientConnectorDNSError:
+            print("Your device has no internet, please connect your device to the internet and try again")
+            
 if __name__ == "__main__":
     clear()
     asyncio.run(main())

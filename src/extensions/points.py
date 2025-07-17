@@ -2,6 +2,7 @@ import discord, sys, os, tomllib
 from sqlite3 import DatabaseError
 from discord.ext import commands
 sys.path.append(os.path.abspath(os.path.join('..', 'schemas')))
+from utils.logs import write_traceback
 from schemas.saveloader import load, add, edit
 
 SAVE = "save.db"
@@ -78,6 +79,7 @@ class Points(commands.Cog):
             await ctx.reply(self.bot.make_error_embed(user.name, 4))
         if isinstance(error, DatabaseError):
             await ctx.reply(self.bot.make_error_embed(user.name, 10))
+            write_traceback(error)
 
 async def setup(bot):
     await bot.add_cog(Points(bot=bot))   

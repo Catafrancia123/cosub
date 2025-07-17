@@ -11,8 +11,7 @@ class Humor(commands.Cog):
 
     @commands.command(brief = "Make the bot say anything.")
     async def say(self, ctx, *, text: str):
-        if ctx.prefix:
-            await ctx.message.delete()
+        await ctx.message.delete()
         await ctx.send(text)
 
     @commands.hybrid_command(with_app_command = True, brief = "Classic RNG command.")

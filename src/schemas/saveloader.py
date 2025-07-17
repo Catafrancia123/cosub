@@ -1,4 +1,4 @@
-import asqlite, asyncio, sqlite3
+import asqlite, asyncio
 
 """SQLite Notes:
 1. Data Types
