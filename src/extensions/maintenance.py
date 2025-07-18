@@ -57,7 +57,8 @@ class Maintenance(commands.Cog):
             color=discord.Color.blue(),
             timestamp=datetime.datetime.now(),
         )
-        await ctx.reply(f"{self.bot.guilds}", embed=embedvar, view=ui_buttons)
+        servers = [names for names in self.bot.guilds]
+        await ctx.reply(f"{servers.name}", embed=embedvar, view=ui_buttons)
 
     async def cog_command_error(self, ctx, error):
         user = ctx.author

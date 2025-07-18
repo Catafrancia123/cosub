@@ -157,7 +157,7 @@ async def main():
     intents.members = True #! can see members
     intents.message_content = True #! can see message content
     async with Bot(
-        command_prefix="$",
+        command_prefix="!",
         intents=intents,
         allowed_mentions=discord.AllowedMentions(roles=True, users=True, replied_user=True, everyone=True),
         description="Check out the code at: https://github.com/Catafrancia123/cosub",
