@@ -32,7 +32,7 @@ title = "Config file"
 bot_token="insert_bot_token"
 
 [guild-settings]
-admin_roles = [128880188670686008, 1378763072357011566, ...]
+admin_roles = [128880188670686008, 1378763072357011566]
 
 # Server names with spaces will be changed by dashes (-): bot test -> bot-test
 [guild-settings.server-name]
