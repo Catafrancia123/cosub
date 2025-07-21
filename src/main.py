@@ -1,12 +1,19 @@
-BOTVER = "0.1.1"
-""" Version 0.1.1:
-    - More rewrites
-    - Better error handling"""
+BOTVER = "0.2.0"
+""" Version 0.2.0:
+    - Local error handling (every cog)
+    - Shift system
+    - Added settings system"""
 
-import discord, datetime, os, sys, asyncio, playsound3, logging, logging.handlers, tomllib, asqlite
+""" TOML vs DB
+TOML guilds are written with a dash (-): bot-test
+DB guilds are written with a underscore (_): bot_test
+"""
+#! use better commands on vscode.
+
+import discord, datetime, os, sys, asyncio, playsound3, logging, logging.handlers, asqlite, toml, pathlib
+from utils.logs import write_traceback
 from schemas.saveloader import check_table
 from aiohttp.client_exceptions import ClientConnectorDNSError
-from utils.logs import write_traceback
 from dotenv import load_dotenv
 from extensions import EXT_LIST
 from discord.ext import commands
@@ -19,44 +26,50 @@ def clear():
         os.system('clear')
 
 SAVE = "save.db"
-logo = discord.File("images/logo.png", filename="logo.png")
+with open("config.toml", "r") as file:
+    config_data = toml.load(file)
 
 class Bot(commands.Bot):
     def __init__(self, *args, ext: list[str], **kwargs):
+        self.__version__ = BOTVER
+        self.interaction_id = 0
         self.ext = ext
         super().__init__(*args, **kwargs)
     
     def make_error_embed(self, username : str, error_code : int = 99, error_msg : str = None) -> discord.Embed:
-        time_format = datetime.datetime.strftime(datetime.datetime.now(datetime.timezone.utc), "Today at %I:%M %p UTC.")
-        #* add more later!!
+        time_format = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        #! errors with "BLANK" can be changed later on
         errors = {1:"Command not found/doesn't exist.", 
                 2:"An input is missing, please try again.",
                 3:"An input is invalid/unprocessable.",
                 4:"You don't have permission to run this command.",
                 5:"Server Error. Please try again later.",
-                6:"Command failure. Please contact a developer.",
-                7:"Command didn't register properly. Please contact a developer.",
+                6:"This server doesnt allow the command above to be run. Please contact your server admin.",
+                7:"BLANK",
                 8:"Intents not properly enabled. Please contact a developer.",
                 9:"Connection with Discord has closed. Please contact a developer.",
                 10:"Database failed to save/load data. Please contact a developer.", 
                 11:"Connection with Discord failed. Please try again later.", 
                 12:"You don't have permission to run this command. Please contact a developer to run the command.",
-                99:f"A code error happened. Please contact the developers.\nError essage: ```{error_msg}```"}
+                99:f"A Python error happened. Please contact the developers.\nError message: ```{error_msg}```"}
 
         embedvar = discord.Embed(
             title=f"Error {error_code:02d}",
-            description=f"{errors[error_code]}",
+            description=errors[error_code],
             color=discord.Color.red(),
-            timestamp=time_format
+            timestamp=datetime.datetime.now()
         )
+        embedvar.set_footer(text=f"ID: {self.interaction_id}")
         if error_code != 99:
-            rprint(f'[grey]{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}[/grey] [[bright_red]ERR {error_code:02d}[/bright_red]] by {username}')
+            rprint(f'[grey]{time_format}[/grey] [[bright_red]ERR {error_code:02d}[/bright_red]] by {username}')
+        else:
+            rprint(f"{time_format} [[bright_red]ERROR[/bright_red]] Python error: {error_msg}")
 
         return embedvar
 
     async def setup_hook(self):
         time_format = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-        rprint(f"[grey]{time_format}[/grey] [[light_green]VERSION[/light_green]] Discord.py version [bright_yellow]{discord.__version__}[/bright_yellow], Bot version [bright_yellow]{BOTVER}[/bright_yellow]")
+        rprint(f"[grey]{time_format}[/grey] [[light_green]VERSION[/light_green]] Discord.py version [bright_yellow]{discord.__version__}[/bright_yellow], Bot version [bright_yellow]{self.__version__}[/bright_yellow]")
         
         for ext in self.ext:
             try:   
@@ -76,53 +89,26 @@ class Bot(commands.Bot):
             await asyncio.run(playsound3.playsound("sounds/beep.wav"))
         except Exception as e:
             pass
+    
+    def on_interaction(self):
+        self.interaction_id += 1
 
     async def on_command_error(self, ctx, error):
+        #! Refer to the error dict for the error codes.
         user = ctx.author
-        time = datetime.datetime.now()
-        time_format = time.strftime('%A, %d %B %Y, %I:%M %p') 
         if isinstance(error, commands.CommandNotFound):
-            #! command not found
-            await ctx.send(embed=self.make_error_embed(user.name,1))
+            await ctx.reply(embed=self.make_error_embed(user.name,1))
         elif isinstance(error, commands.MissingRequiredArgument):
-            #! no input
-            await ctx.send(embed=self.make_error_embed(user.name,2))
+            await ctx.reply(embed=self.make_error_embed(user.name,2))
         elif isinstance(error, commands.BadArgument):
-            #! input not valid/wrong
-            await ctx.send(embed=self.make_error_embed(user.name,3))
+            await ctx.reply(embed=self.make_error_embed(user.name,3))
         elif isinstance(error, commands.MissingAnyRole):
-            #! no perms?
-            await ctx.send(embed=self.make_error_embed(user.name,4))
+            await ctx.reply(embed=self.make_error_embed(user.name,4))
         elif isinstance(error, discord.HTTPException):
-            #! HTTP error
-            await ctx.send(embed=self.make_error_embed(user.name,5))
-        elif isinstance(error, commands.CheckFailure):
-            #! check fail
-            await ctx.send(embed=self.make_error_embed(user.name,6))
-        elif isinstance(error, discord.Forbidden):
-            #! HTTP code 403 (forbidden)
-            await ctx.send(embed=self.make_error_embed(user.name,5))
-        elif isinstance(error, commands.CommandRegistrationError):
-            #! command registration failed
-            await ctx.send(embed=self.make_error_embed(user.name,7))
-        elif isinstance(error, discord.PrivilegedIntentsRequired):
-            #! intents not properly enabled
-            await ctx.send(embed=self.make_error_embed(user.name,8))
-        elif isinstance(error, discord.ConnectionClosed):
-            #! connection with discord closed
-            await ctx.send(embed=self.make_error_embed(user.name,9))
-        elif isinstance(error, discord.GatewayNotFound):
-            #! connection with discord gateaway failed
-            await ctx.send(embed=self.make_error_embed(user.name,11))
-        elif isinstance(error, discord.NotFound):
-            #! HTTP code 404 (not found)
-            await ctx.send(embed=self.make_error_embed(user.name,5))
+            await ctx.reply(embed=self.make_error_embed(user.name,5))
         else:
-            #! what happen?? (python error or smth)
-            rprint(f"[[bright_red]ERROR[/bright_red]] Python error: {error}\n{time_format}")
-            await ctx.send(embed=self.make_error_embed(user.name,error_msg=error))
+            await ctx.reply(embed=self.make_error_embed(user.name,99,error))
             write_traceback(error)
-            
         
 async def main():
     time_format = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
@@ -137,7 +123,7 @@ async def main():
         filename='bot.log',
         encoding='utf-8',
         mode="w",
-        maxBytes=32 * 1024 * 1024,  #! 32mb
+        maxBytes=16 * 1024 * 1024,  #! 16mb
         backupCount=5,  #! Rotate through 5 files
     )
     dt_fmt = '%Y-%m-%d %H:%M:%S'
@@ -146,30 +132,35 @@ async def main():
     logger.addHandler(handler)
     rprint(f'[grey]{time_format}[/grey] [[light_green]SUCCESSFUL[/light_green]] Logger has been set up.')
 
-    #* 2. The database
-    tables = ["ration", "social_credit"]
-    for table in tables:
-        await check_table(SAVE, table)
-    rprint(f'[grey]{time_format}[/grey] [[light_green]SUCCESSFUL[/light_green]] Database (asqlite version [bright_yellow]{asqlite.__version__}[/bright_yellow]) has been set up.')
-
-    #* 3. The startup
+    #* 2. The main function
+    unloaded_modules = config_data["bot-settings"]["unloaded_modules"]
     intents = discord.Intents.default()
     intents.members = True #! can see members
     intents.message_content = True #! can see message content
+    intents.reactions = True #! can see reactions
     async with Bot(
-        command_prefix="$",
+        command_prefix="!",
         intents=intents,
         allowed_mentions=discord.AllowedMentions(roles=True, users=True, replied_user=True, everyone=True),
         description="Check out the code at: https://github.com/Catafrancia123/cosub",
-        ext=EXT_LIST, #! <-- The number here represents how much modules is unloaded.
+        ext=EXT_LIST[:-unloaded_modules],
     ) as bot:
+        #* 2.1 Database
+        server_names = [server.name.replace(" ", "_") for server in bot.guilds]
+        for name in server_names:
+            try:
+                await check_table(name)
+            except Exception as e:
+                rprint(f'[grey]{time_format}[/grey] [[bright_red]ERROR[/bright_red]] Database table \"{name}\" failed to initialize.')
+                write_traceback(e)
+        rprint(f'[grey]{time_format}[/grey] [[light_green]SUCCESSFUL[/light_green]] Database ({asqlite.__name__} version [bright_yellow]{asqlite.__version__}[/bright_yellow]) has been set up.')
+
         load_dotenv()
         data = os.getenv("bot_token")
-        for server in bot.guilds:
-            print(server)
         if data is None:
-            with open("config.toml", "rb") as config:
-                data = tomllib.load(config)["bot-settings"]["bot_token"]
+            data = config_data["bot-settings"]["bot_token"]
+        if "src" not in str(pathlib.Path("./").cwd()):
+            raise Exception("Please run this file from the src directory and not from anywhere else.\nThis is to prevent import errors.")
 
         try:
             await bot.start(data, reconnect=True)

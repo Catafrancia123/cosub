@@ -1,12 +1,12 @@
-import datetime, discord, tomllib, sys, os
+import datetime, discord, toml, sys, os, pathlib
 import discord.ui as UI
 from extensions import EXT_LIST
 from discord.ext import commands
 from rich import print as rprint
 
-with open("config.toml", "rb") as config:
-    data = tomllib.load(config)
-    admin_roles = data["guild-settings"]["admin_roles"]
+with open("config.toml", "r") as config:
+    config_data = toml.load(config)
+    admin_roles = config_data["guild-settings"]["admin_roles"]
     
 def clear():
     if sys.platform.startswith(('win32')):
@@ -14,7 +14,7 @@ def clear():
     elif sys.platform.startswith(('linux', 'cygwin', 'darwin', 'freebsd')):
         os.system('clear')             
 
-class Maintenance(commands.Cog):    
+class Maintenance(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
         self.time_format = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
@@ -34,10 +34,11 @@ class Maintenance(commands.Cog):
     @commands.command(brief = "Used to sync commands.")
     @commands.is_owner()
     async def sync(self, ctx):
+        unloaded_modules = config_data["bot-settings"]["unloaded_modules"]
         user = ctx.author
         clear()
         rprint(f'[grey]{self.time_format}[/grey] [[light_blue]EVN 02[/light_blue]] Bot extension sync initiated by {user.name}')
-        for ext in EXT_LIST: #! <-- The number here represents how much modules is unloaded.
+        for ext in EXT_LIST[:-unloaded_modules]:
             try:   
                 await self.bot.reload_extension(ext.name)
                 rprint(f'[grey]{self.time_format}[/grey] [[light_green]SUCCESSFUL[/light_green]] Module \"{ext.name}\" has been reloaded.')
@@ -45,6 +46,7 @@ class Maintenance(commands.Cog):
                 rprint(f'[grey]{self.time_format}[/grey] [[bright_red]ERROR[/bright_red]] Module \"{ext.name}\" failed to reload.')
                 print(e)
         await self.bot.tree.sync()
+        rprint(f'[grey]{self.time_format}[/grey] [[light_green]COMPLETE[/light_green]] Bot has completed syncing.')
         await ctx.reply("All commands have been synced.")
 
     @commands.command(brief="This is a test command.")
@@ -56,15 +58,17 @@ class Maintenance(commands.Cog):
             description="Button test and a timestamp test below!",
             color=discord.Color.blue(),
             timestamp=datetime.datetime.now(),
-        )
-        await ctx.reply(f"{self.bot.guilds}", embed=embedvar, view=ui_buttons)
+        )            
+        embedvar.set_footer(text=f"ID: {self.bot.interaction_id}")
+        await ctx.reply(embed=embedvar, view=ui_buttons)
 
     async def cog_command_error(self, ctx, error):
         user = ctx.author
-        if isinstance(error, commands.MissingAnyRole):
-            await ctx.reply(self.bot.make_error_embed(user.name, 4))
+        #! Refer to the error dict in main file for the error codes.
         if isinstance(error, commands.NotOwner):
-            await ctx.reply(self.bot.make_error_embed(user.name, 12))
+            await ctx.reply(embed=self.make_error_embed(user.name, 12))
+        else:
+            await self.bot.on_command_error(ctx, error)
 
 class ButtonInteractions(UI.View):
     def __init__(self, timeout_duration_seconds: int = 180):
@@ -80,7 +84,6 @@ class ButtonInteractions(UI.View):
     async def test_2(self, interaction: discord.Interaction, button: discord.ui.Button):
         await interaction.response.send_message('Running test_button 2', ephemeral=True)
         self.stop()
-
 
 async def setup(bot):
     await bot.add_cog(Maintenance(bot=bot))

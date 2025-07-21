@@ -10,11 +10,19 @@ BLOB - any
 
 1.1 Data Type Requirements
 NN (Not Null) - The data must not be empty.
+PK (Primary key) - Self-Explanatory.
 """
 
 async def check_table(path: str, table: str):
-    async with asqlite.connect(path) as conn, conn.cursor() as cursor:
-        await cursor.execute(f"CREATE TABLE IF NOT EXISTS {table} (name TEXT NOT NULL ON CONFLICT ABORT, value BLOB)")
+    async with asqlite.connect(path) as conn, conn.cursor() as db:
+        await db.execute(f"""CREATE TABLE IF NOT EXISTS "{table}" (
+	"name"	TEXT NOT NULL,
+	"points"	INTEGER NOT NULL DEFAULT 0,
+	"shifts"	INTEGER NOT NULL DEFAULT 0,
+	"shift_duration_seconds"	INTEGER NOT NULL DEFAULT 0,
+	PRIMARY KEY("name") ON CONFLICT ABORT
+    );""")
+        conn.commit()
 
 async def edit(path: str, table: str, value_index: str, value):
     """
@@ -27,9 +35,9 @@ async def edit(path: str, table: str, value_index: str, value):
         value (any): The data you want to insert.
     """
 
-    async with asqlite.connect(path) as conn, conn.cursor() as cursor:
+    async with asqlite.connect(path) as conn, conn.cursor() as db:
         code = f"UPDATE OR ABORT {table} SET value = ? WHERE name = ?"
-        await cursor.execute(code, value, value_index)
+        await db.execute(code, value, value_index)
         await conn.commit()
 
 async def add(path: str, table: str, value_index: str, value):
@@ -43,9 +51,9 @@ async def add(path: str, table: str, value_index: str, value):
         value (any): The data you want to insert.
     """
 
-    async with asqlite.connect(path) as conn, conn.cursor() as cursor:
+    async with asqlite.connect(path) as conn, conn.cursor() as db:
         code = f"INSERT OR ABORT INTO {table} (name, value) VALUES(?,?)"
-        await cursor.execute(code, (value_index, value))     
+        await db.execute(code, (value_index, value))     
         await conn.commit()
 
 async def load(path: str, table: str, value_index: str) -> any:
@@ -61,10 +69,10 @@ async def load(path: str, table: str, value_index: str) -> any:
         any: The data itself.
     """
 
-    async with asqlite.connect(path) as conn, conn.cursor() as cursor:
+    async with asqlite.connect(path) as conn, conn.cursor() as db:
         code = f"SELECT value FROM {table} WHERE name = ?"
-        await cursor.execute(code, (value_index))
-        data = await cursor.fetchone()
+        await db.execute(code, (value_index))
+        data = await db.fetchone()
 
     if data is not None:
         return data[0]

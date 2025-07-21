@@ -1,4 +1,4 @@
-![Version](https://img.shields.io/badge/version-0.1.0-blue?style=plastic) [![Discord](https://img.shields.io/discord/990326151987724378?logo=discord&logoColor=white&color=5865F2)](https://discord.gg/BHUxXKwTfA) 
+![Version](https://img.shields.io/badge/version-0.2.0-blue?style=plastic) [![Discord](https://img.shields.io/discord/990326151987724378?logo=discord&logoColor=white&color=5865F2)](https://discord.gg/BHUxXKwTfA) 
 # cosub
 cosub (short for Catamapp's Open Source Utilities Bot) is a open source discord utilities bot for servers that have a sort of work enviroment and wanted a easy to configure bot.
 
@@ -14,13 +14,13 @@ What you need to run the bot is the newest Python version, find [here](https://p
 - `playsound3` (local) - This plays a sound to alert you that the bot is ready.
 - `python-dotenv` (local) - This is for loading a enviroment file for the discord token.
 - `asqlite` (database) - This is the database the bot is going to be using.
+- `toml` (config) - This is for writing and reading the toml config file and used in guild settings. 
 - `jishaku` (misc) - Library for bot statistics, etc.
 
 > [!NOTE]
-> The packages with `(local)` tag have to be installed to prevent any errors in the file (i just used them to make your command line look better lol - catamapp).
+> The packages with `(local)` tag have to be installed to prevent any errors (i just used them to make your command line look better lol - catamapp).
 
-If you want to install these packages fast, run the `requirements.txt` file.
-`pip install -r requirements.txt`
+If you want to install these packages fast, run `pip install -r requirements.txt`
 
 # Running The Bot
 ## Setup
@@ -33,6 +33,12 @@ bot_token="insert_bot_token"
 
 [guild-settings]
 admin_roles = [128880188670686008, 1378763072357011566, ...]
+
+# Server names with spaces will be changed by dashes (-): bot test -> bot-test
+[guild-settings.server-name]
+# Set member_role to 0 if you want to ping everyone
+member_role = 0
+faction = false
 ```
 
 ## Running it
