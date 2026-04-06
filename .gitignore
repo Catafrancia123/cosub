@@ -200,6 +200,8 @@ cython_debug/
 src/config.json
 src/test.py
 src/commands/test.py
+compile.sh
+*.zip
 *.db
 *.db-shm
 *.db-wal
