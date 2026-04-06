@@ -1,5 +1,6 @@
-import datetime, discord, toml, sys, os, pathlib
+import discord, toml, sys, os, asqlite
 import discord.ui as UI
+from datetime import datetime
 from extensions import EXT_LIST
 from discord.ext import commands
 from rich import print as rprint
@@ -17,7 +18,7 @@ def clear():
 class Maintenance(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
-        self.time_format = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        self.time_format = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 
     @commands.has_any_role(*admin_roles)
     @commands.command(brief = "Shuts down the bot manually.")
@@ -29,7 +30,7 @@ class Maintenance(commands.Cog):
 
     @commands.hybrid_command(with_app_command = True, brief = "Shows the average ping of the bot.")
     async def ping(self, ctx):
-        await ctx.reply(f"Discord Bot => {round(self.bot.latency*1000)}ms\n")
+        await ctx.reply(f"Bot Latency => {round(self.bot.latency*1000)}ms\n")
 
     @commands.command(brief = "Used to sync commands.")
     @commands.is_owner()
@@ -56,12 +57,21 @@ class Maintenance(commands.Cog):
         embedvar = discord.Embed(
             title="Test command!!!",
             description="Button test and a timestamp test below!",
-            color=discord.Color.blue(),
-            timestamp=datetime.datetime.now(),
+            color=discord.Color.random(),
+            timestamp=datetime.now(),
         )            
-        embedvar.set_footer(text=f"ID: {self.bot.interaction_id}")
+        embedvar.set_footer(text=f"ID: {ctx.interaction.id}")
         await ctx.reply(embed=embedvar, view=ui_buttons)
 
+    """@commands.hybrid_command(brief="Runs SQL code for DB adjustments.")
+    @commands.is_owner()
+    async def run_sql(self, ctx, *args):
+        code = " ".join(args)
+        async with asqlite.connect("save.db") as conn, conn.cursor() as db:
+            await db.execute(code)
+
+        await ctx.reply(f"Ran SQL Code:\n```{code}```", ephemeral=True)"""
+        
     async def cog_command_error(self, ctx, error):
         user = ctx.author
         #! Refer to the error dict in main file for the error codes.

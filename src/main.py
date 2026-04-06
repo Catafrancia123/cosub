@@ -8,9 +8,10 @@ BOTVER = "0.2.0"
 TOML guilds are written with a dash (-): bot-test
 DB guilds are written with a underscore (_): bot_test
 """
-#! use better commands on vscode.
+#! use better comments on vscode.
 
-import discord, datetime, os, sys, asyncio, playsound3, logging, logging.handlers, asqlite, toml, pathlib
+import discord, os, sys, asyncio, playsound3, logging, logging.handlers, asqlite, toml, pathlib
+from datetime import datetime
 from utils.logs import write_traceback
 from schemas.saveloader import check_table
 from aiohttp.client_exceptions import ClientConnectorDNSError
@@ -25,19 +26,31 @@ def clear():
     elif sys.platform.startswith(('linux', 'cygwin', 'darwin', 'freebsd')):
         os.system('clear')
 
+#* get config data
 SAVE = "save.db"
 with open("config.toml", "r") as file:
     config_data = toml.load(file)
 
 class Bot(commands.Bot):
     def __init__(self, *args, ext: list[str], **kwargs):
+        #* interaction_id is basically for the embeds
         self.__version__ = BOTVER
-        self.interaction_id = 0
+        self.interaction_id = 1
         self.ext = ext
         super().__init__(*args, **kwargs)
     
-    def make_error_embed(self, username : str, error_code : int = 99, error_msg : str = None) -> discord.Embed:
-        time_format = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    def make_error_embed(self, username : str, error_code : int, error_msg : str = None) -> discord.Embed:
+        """Returns a embed with an informative error message.
+        
+        Args:
+            username (str): The user's name who did the error.
+            error_code (int): Refer to the dictionary inside the main file for the codes.
+            error_msg (str) = None: Optional error message for python errors.
+            
+        Returns:
+            discord.Embed: The embed that contains the error message.
+        """
+        time_format = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         #! errors with "BLANK" can be changed later on
         errors = {1:"Command not found/doesn't exist.", 
                 2:"An input is missing, please try again.",
@@ -57,7 +70,7 @@ class Bot(commands.Bot):
             title=f"Error {error_code:02d}",
             description=errors[error_code],
             color=discord.Color.red(),
-            timestamp=datetime.datetime.now()
+            timestamp=datetime.now()
         )
         embedvar.set_footer(text=f"ID: {self.interaction_id}")
         if error_code != 99:
@@ -67,10 +80,34 @@ class Bot(commands.Bot):
 
         return embedvar
 
+    async def startup_setup(self):
+        #* Make embed for startup
+        await self.wait_until_ready()
+        time_format = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        startup_embed = discord.Embed(
+            title="Bot Status",
+            description=f"> Bot has been online since:\n<t:{round(datetime.now().timestamp())}:f>",
+            color=discord.Color.brand_green(),
+        )
+        startup_embed.set_thumbnail(url=self.user.avatar.url)
+        startup_embed.set_footer(text=f"ID: {self.interaction_id}")
+        server_names = [server.name.replace(" ", "-") for server in self.guilds]
+        for name in server_names:
+            try:
+                channel_id = config_data["guild-settings"][name]["startup_channel"]
+                if channel_id != 0:
+                    print("hello world")
+                    startup_channel = self.get_channel(channel_id)
+                    print(startup_channel.message_count)
+                    await startup_channel.delete_messages([startup_channel.last_message_id])
+                    await startup_channel.send(embed=startup_embed)
+                    rprint(f"[grey]{time_format}[/grey] [[light_green]SUCCESSFUL[/light_green]] Sent status message to guild: {name}")
+            except Exception:
+                pass
+
     async def setup_hook(self):
-        time_format = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-        rprint(f"[grey]{time_format}[/grey] [[light_green]VERSION[/light_green]] Discord.py version [bright_yellow]{discord.__version__}[/bright_yellow], Bot version [bright_yellow]{self.__version__}[/bright_yellow]")
-        
+        time_format = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        rprint(f"[grey]{time_format}[/grey] [[light_green]VERSION[/light_green]] Discord.py version [bright_yellow]{discord.__version__}[/bright_yellow], Bot version [bright_yellow]{self.__version__}[/bright_yellow]")      
         for ext in self.ext:
             try:   
                 await self.load_extension(ext.name)
@@ -81,16 +118,17 @@ class Bot(commands.Bot):
                 write_traceback(e)
     
         await self.load_extension("jishaku")
-        await self.tree.sync()
-        rprint(f'[grey]{time_format}[/grey] [[light_green]SUCCESSFUL[/light_green]] Synced slash commands and loaded jishaku.')
+        rprint(f'[grey]{time_format}[/grey] [[light_green]SUCCESSFUL[/light_green]] Module \"jishaku\" has been loaded.')
         rprint(f"[grey]{time_format}[/grey] [[bright_yellow]WARNING[/bright_yellow]] Please ping catamapp for bot maintenance/unknown errors.")
+        asyncio.create_task(self.startup_setup())
         rprint(f'[grey]{time_format}[/grey] [[light_green]COMPLETE[/light_green]] Bot has completed startup and now can be used.')
         try:
             await asyncio.run(playsound3.playsound("sounds/beep.wav"))
         except Exception as e:
             pass
+        
     
-    def on_interaction(self):
+    def on_app_command_completion(self):
         self.interaction_id += 1
 
     async def on_command_error(self, ctx, error):
@@ -111,8 +149,8 @@ class Bot(commands.Bot):
             write_traceback(error)
         
 async def main():
-    time_format = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-    #* 1. The logger
+    time_format = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    #* 1. Set up logger
     logs = ["error", "bot"]
     for log_file in logs:
         open(f"{log_file}.log", "w").close()
@@ -132,12 +170,11 @@ async def main():
     logger.addHandler(handler)
     rprint(f'[grey]{time_format}[/grey] [[light_green]SUCCESSFUL[/light_green]] Logger has been set up.')
 
-    #* 2. The main function
+    #* 2. Add stuff to bot
     unloaded_modules = config_data["bot-settings"]["unloaded_modules"]
     intents = discord.Intents.default()
     intents.members = True #! can see members
     intents.message_content = True #! can see message content
-    intents.reactions = True #! can see reactions
     async with Bot(
         command_prefix="!",
         intents=intents,
@@ -145,7 +182,7 @@ async def main():
         description="Check out the code at: https://github.com/Catafrancia123/cosub",
         ext=EXT_LIST[:-unloaded_modules],
     ) as bot:
-        #* 2.1 Database
+        #* 2.1 Check Database
         server_names = [server.name.replace(" ", "_") for server in bot.guilds]
         for name in server_names:
             try:
@@ -155,6 +192,7 @@ async def main():
                 write_traceback(e)
         rprint(f'[grey]{time_format}[/grey] [[light_green]SUCCESSFUL[/light_green]] Database ({asqlite.__name__} version [bright_yellow]{asqlite.__version__}[/bright_yellow]) has been set up.')
 
+        #* 2.2 Load token and check cwd
         load_dotenv()
         data = os.getenv("bot_token")
         if data is None:

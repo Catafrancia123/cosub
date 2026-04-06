@@ -1,7 +1,6 @@
-import discord, datetime, toml, pathlib
+import discord, toml
+from datetime import datetime
 from discord.ext import commands
-pathlib.Path(__file__).parent / "utils/logs.py"
-from utils.logs import write_traceback
 
 with open("config.toml", "r") as config:
     config_data = toml.load(config)
@@ -20,7 +19,7 @@ class Events(commands.Cog):
             title="Deployment",
             description=f"## Host: <@{user.id}>\nTime: <t:{time_unix}:t>, <t:{time_unix}:R>\nPlace: {location}\n\n{text}",
             color=discord.Color.red(),
-            timestamp=datetime.datetime.now(),
+            timestamp=datetime.now(),
         )
         embedvar.set_footer(text=f"ID: {self.bot.interaction_id}")
 
@@ -36,7 +35,7 @@ class Events(commands.Cog):
             title=f"{type} Training",
             description=f"### Host: <@{user.id}>\nTime: <t:{time_unix}:t>, <t:{time_unix}:R>\n\n{text}",
             color=discord.Color.red(),
-            timestamp=datetime.datetime.now(),
+            timestamp=datetime.now(),
         )
         embedvar.set_footer(text=f"ID: {self.bot.interaction_id}")
         
@@ -50,7 +49,7 @@ class Events(commands.Cog):
             title="A tryout is being hosted!",
             description=f"### Host: <@{user.id}>\nTime: <t:{time_unix}:t>, <t:{time_unix}:R>\nPlace: {location}\n\n{text}",
             color=discord.Color.red(),
-            timestamp=datetime.datetime.now(),
+            timestamp=datetime.now(),
         )
         embedvar.set_footer(text=f"ID: {self.bot.interaction_id}")
         

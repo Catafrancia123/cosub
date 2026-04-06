@@ -13,14 +13,13 @@ class Shift(commands.Cog):
     @commands.command(brief="Manage and view your shifts.")
     async def shift_info(self, ctx):
         user = ctx.author
-
-        ui_buttons = ButtonInteractions()
         embedvar = discord.Embed(
             title=ctx.guild.name,
             description="Shift not activated.",
             color=discord.Color.red(),
             timestamp=datetime.datetime.now(),
-        )            
+        )
+        ui_buttons = ButtonInteractions()
         embedvar.set_footer(text=f"ID: {self.bot.interaction_id}")
         await ctx.reply(embed=embedvar, view=ui_buttons)
 
