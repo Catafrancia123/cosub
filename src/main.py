@@ -1,7 +1,8 @@
-BOTVER = "0.2.0"
-""" Version 0.2.0:
-    - Local error handling (every cog)
-    - Shift system
+BOTVER = "0.2.1-dev1"
+""" Version 0.2.1-dev1:
+    - Modified config.toml structure for better organization
+    - Rewrote README.md
+    - Added checks for faction-based commands
     - Added settings system"""
 
 """ TOML vs DB
@@ -15,7 +16,6 @@ from datetime import datetime
 from utils.logs import write_traceback
 from schemas.saveloader import check_table
 from aiohttp.client_exceptions import ClientConnectorDNSError
-from dotenv import load_dotenv
 from extensions import EXT_LIST
 from discord.ext import commands
 from rich import print as rprint
@@ -57,7 +57,7 @@ class Bot(commands.Bot):
                 3:"An input is invalid/unprocessable.",
                 4:"You don't have permission to run this command.",
                 5:"Server Error. Please try again later.",
-                6:"This server doesnt allow the command above to be run. Please contact your server admin.",
+                6:"This server doesnt allow the command above to be run. Please contact your server administrator.",
                 7:"BLANK",
                 8:"Intents not properly enabled. Please contact a developer.",
                 9:"Connection with Discord has closed. Please contact a developer.",
@@ -144,6 +144,8 @@ class Bot(commands.Bot):
             await ctx.reply(embed=self.make_error_embed(user.name,4))
         elif isinstance(error, discord.HTTPException):
             await ctx.reply(embed=self.make_error_embed(user.name,5))
+        elif isinstance(error, commands.CheckFailure):
+            await ctx.reply(embed=self.make_error_embed(user.name,6))
         else:
             await ctx.reply(embed=self.make_error_embed(user.name,99,error))
             write_traceback(error)
@@ -171,16 +173,19 @@ async def main():
     rprint(f'[grey]{time_format}[/grey] [[light_green]SUCCESSFUL[/light_green]] Logger has been set up.')
 
     #* 2. Add stuff to bot
-    unloaded_modules = config_data["bot-settings"]["unloaded_modules"]
+    loaded_modules = config_data["bot-settings"]["loaded_modules"]
+    for ext in EXT_LIST:
+        if ext.name.replace("extensions.", "") not in loaded_modules:
+            EXT_LIST.remove(ext)
     intents = discord.Intents.default()
     intents.members = True #! can see members
-    intents.message_content = True #! can see message content
+    intents.message_content = True #! can see message content``
     async with Bot(
         command_prefix="!",
         intents=intents,
         allowed_mentions=discord.AllowedMentions(roles=True, users=True, replied_user=True, everyone=True),
         description="Check out the code at: https://github.com/Catafrancia123/cosub",
-        ext=EXT_LIST[:-unloaded_modules],
+        ext=EXT_LIST,
     ) as bot:
         #* 2.1 Check Database
         server_names = [server.name.replace(" ", "_") for server in bot.guilds]
@@ -193,15 +198,12 @@ async def main():
         rprint(f'[grey]{time_format}[/grey] [[light_green]SUCCESSFUL[/light_green]] Database ({asqlite.__name__} version [bright_yellow]{asqlite.__version__}[/bright_yellow]) has been set up.')
 
         #* 2.2 Load token and check cwd
-        load_dotenv()
-        data = os.getenv("bot_token")
-        if data is None:
-            data = config_data["bot-settings"]["bot_token"]
+        token = config_data["bot-settings"]["bot_token"]
         if "src" not in str(pathlib.Path("./").cwd()):
             raise Exception("Please run this file from the src directory and not from anywhere else.\nThis is to prevent import errors.")
 
         try:
-            await bot.start(data, reconnect=True)
+            await bot.start(token, reconnect=True)
         except ClientConnectorDNSError:
             print("Your device has no internet, please connect your device to the internet and try again")
             

@@ -12,10 +12,9 @@ What you need to run the bot is the newest Python version, find [here](https://p
 - `discord.py` - This is what discord package the bot runs on.
 - `rich` (local) - This adds colors and many other stuff you cant do in basic python.
 - `playsound3` (local) - This plays a sound to alert you that the bot is ready.
-- `python-dotenv` (local) - This is for loading a enviroment file for the discord token.
 - `asqlite` (database) - This is the database the bot is going to be using.
-- `toml` (config) - This is for writing and reading the toml config file and used in guild settings. 
-- `jishaku` (misc) - Library for bot statistics, etc.
+- `toml` (config) - This is for writing and reading the `toml` config file and used in guild settings. 
+- `jishaku` (misc) - Bot extension for bot statistics, etc.
 
 > [!NOTE]
 > The packages with `(local)` tag have to be installed to prevent any errors (i just used them to make your command line look better lol - catamapp).
@@ -29,15 +28,21 @@ Before running the bot, you need a `config.toml` file as the config for the bot,
 title = "Config file"
 
 [bot-settings]
-bot_token="insert_bot_token"
+bot_token = "insert_discord_bot_token"
+# loaded_modules is a development config if you want to specify the modules loaded. (FOR ALL SERVERS)
+loaded_modules = ["maintenance", "humor", "settings"]
 
 [guild-settings]
+# admin roles are the roles that have administrator/moderator permissions (FOR ALL SERVERS)
 admin_roles = [128880188670686008, 1378763072357011566]
 
 # Server names with spaces will be changed by dashes (-): bot test -> bot-test
 [guild-settings.server-name]
-# Set member_role to 0 if you want to ping everyone
+# member_role is the role id of a "member" role, set to 0 if you want to ping everyone.
 member_role = 0
+# Set startup_channel to 0 if you don't have a sophisticated channel for bot startup message.
+startup_channel = 1397584273967681697
+# faction is the activation of certain extensions (deployments, training, points, etc.) if your discord server is a faction. Defaults to false.
 faction = false
 ```
 

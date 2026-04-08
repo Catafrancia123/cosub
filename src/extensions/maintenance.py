@@ -35,11 +35,14 @@ class Maintenance(commands.Cog):
     @commands.command(brief = "Used to sync commands.")
     @commands.is_owner()
     async def sync(self, ctx):
-        unloaded_modules = config_data["bot-settings"]["unloaded_modules"]
+        loaded_modules = config_data["bot-settings"]["loaded_modules"]
+        for ext in EXT_LIST:
+            if ext.name.replace("extensions.", "") not in loaded_modules:
+                EXT_LIST.remove(ext)
         user = ctx.author
         clear()
         rprint(f'[grey]{self.time_format}[/grey] [[light_blue]EVN 02[/light_blue]] Bot extension sync initiated by {user.name}')
-        for ext in EXT_LIST[:-unloaded_modules]:
+        for ext in EXT_LIST:
             try:   
                 await self.bot.reload_extension(ext.name)
                 rprint(f'[grey]{self.time_format}[/grey] [[light_green]SUCCESSFUL[/light_green]] Module \"{ext.name}\" has been reloaded.')
@@ -60,7 +63,7 @@ class Maintenance(commands.Cog):
             color=discord.Color.random(),
             timestamp=datetime.now(),
         )            
-        embedvar.set_footer(text=f"ID: {ctx.interaction.id}")
+        embedvar.set_footer(text=f"ID: {self.bot.interaction_id}")
         await ctx.reply(embed=embedvar, view=ui_buttons)
 
     """@commands.hybrid_command(brief="Runs SQL code for DB adjustments.")
