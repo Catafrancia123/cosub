@@ -1,6 +1,6 @@
 BOTVER = "0.2.1-dev3"
 """ Version 0.2.1-dev3:
-    - Shift system (soon)
+    - Changed toml and db to store servers by id and not name
 """
 
 """ TOML vs DB
@@ -94,38 +94,29 @@ class Bot(commands.Bot):
         )
         startup_embed.set_thumbnail(url=self.user.avatar.url)
         startup_embed.set_footer(text=f"ID: {self.interaction_id}")
-        server_names = [server.name.replace(":", " ").replace(" ", "-").lower() for server in self.guilds] #* oneliner because why not
         
         try:
             username = config_data['bot-settings']['local_username']
         except Exception:
             username = "admin"
             
-        for name in server_names:
+        for server in self.guilds:
             #* db setup for servers
             file = "./save.db"
-            await add(file, "server_info", "name", name) # name field is unique
-            
-            #* get prefix
-            text_list = list(name)
-            prefix = text_list[0]
-            for letter in text_list:
-                if letter == "-":
-                    prefix += text_list[text_list.index(letter) + 1]
-                elif letter == "-" and text_list[text_list.index(letter) + 1] == "-": break
-            await edit(file, "server_info", "prefix", "name", name, prefix)
-            
+            await add(file, "server_info", "id", server.id)
+ 
             #* startup message id thing
             try:
-                channel_id = config_data["guild-settings"][name]["startup_channel"]
+                channel_id = config_data["guild-settings"][f"{server.id}"]["startup_channel"]
                 if channel_id == 0: continue
-            except Exception:
-                rprint(f'[grey]{time_format}[/grey] [[bright_yellow]WARNING[/bright_yellow]] No startup channel defined for guild: {name}')
+            except Exception as e:
+                rprint(f'[grey]{time_format}[/grey] [[bright_yellow]WARNING[/bright_yellow]] No startup channel defined for guild: {server.name}')
+                write_traceback(e)
                 continue
             startup_channel = self.get_channel(channel_id)
             await startup_channel.send(f"Bot startup by: {username}", embed=startup_embed)
-            await edit(file, "server_info", "startup_message_id", "name", name, startup_channel.last_message_id)
-            rprint(f"[grey]{time_format}[/grey] [[light_green]SUCCESSFUL[/light_green]] Sent status message to guild: {name}")
+            await edit(file, "server_info", "startup_message_id", "id", server.id, startup_channel.last_message_id)
+            rprint(f"[grey]{time_format}[/grey] [[light_green]SUCCESSFUL[/light_green]] Sent status message to guild: {server.name}")
 
     async def setup_hook(self):
         time_format = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
@@ -219,10 +210,9 @@ async def main():
     ) as bot:
         logger.info("Bot Startup: 2/6, bot class created")
         #* 2.1 Check Database
-        server_names = [server.name.replace(":", " ").replace(" ", "_").lower() for server in bot.guilds]
-        for name in server_names:
+        for server in bot.guilds:
             try:
-                await check_table(name)
+                await check_table(server.id)
             except Exception as e:
                 rprint(f'[grey]{time_format}[/grey] [[bright_red]ERROR[/bright_red]] Database table \"{name}\" failed to initialize.')
                 write_traceback(e)

@@ -36,19 +36,18 @@ class Maintenance(commands.Cog):
         )
         startup_embed.set_thumbnail(url=self.bot.user.avatar.url)
         startup_embed.set_footer(text=f"ID: {self.bot.interaction_id}")
-        server_names = [server.name.lower().replace(":", " ").replace(" ", "-") for server in self.bot.guilds] #* oneliner because why not
-        for name in server_names:
+        for server in self.bot.guilds:
             try:
-                channel_id = config_data["guild-settings"][name]["startup_channel"]
+                channel_id = config_data["guild-settings"][f"{server.id}"]["startup_channel"]
                 if channel_id == 0: continue
                 startup_channel = self.bot.get_channel(channel_id)
-                status_message = await startup_channel.fetch_message(await load("./save.db", "server_info", "startup_message_id", "name", name))
+                status_message = await startup_channel.fetch_message(await load("./save.db", "server_info", "startup_message_id", "id", server.id))
             except Exception as e:
                 write_traceback(e)
                 continue
 
             await status_message.edit(content=f"Bot shutdown by: {user.name}", embed=startup_embed)
-            rprint(f"[grey]{self.time_format}[/grey] [[light_green]SUCCESSFUL[/light_green]] Sent shutdown message to guild: {name}")
+            rprint(f"[grey]{self.time_format}[/grey] [[light_green]SUCCESSFUL[/light_green]] Sent shutdown message to guild: {server.name}")
         await self.bot.close()
 
     @commands.hybrid_command(with_app_command = True, brief = "Shows the average ping of the bot.")

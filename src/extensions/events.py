@@ -7,8 +7,7 @@ with open("config.toml", "r") as config:
     admin_roles = config_data["guild-settings"]["admin_roles"]
     
 def is_faction_check(ctx):
-    server_name = ctx.guild.name.lower().replace(":", " ").replace(" ", "-")
-    is_faction = config_data["guild-settings"][server_name]["faction"]
+    is_faction = config_data["guild-settings"][f"{ctx.guild.id}"]["faction"]
     return is_faction
 
 class Events(commands.Cog):
@@ -19,8 +18,7 @@ class Events(commands.Cog):
     @commands.has_any_role(*admin_roles)
     @commands.hybrid_command(with_app_command = True, brief = "Hosts a deployment.")
     async def deployment(self, ctx, time_unix: int, location: str, text: str, host: discord.Member = commands.Author):
-        server_name = ctx.guild.name.replace(":", " ").replace(" ", "-")
-        member_role = f"<@&{config_data["guild-settings"][server_name]["member_role"]}>"
+        member_role = f"<@&{config_data["guild-settings"][ctx.guild.id]["member_role"]}>"
         user = host
         embedvar = discord.Embed(
             title="Deployment",
@@ -39,6 +37,7 @@ class Events(commands.Cog):
     @commands.hybrid_command(with_app_command = True, brief = "Hosts a training.")
     async def training(self, ctx, type: str, time_unix: int, text: str, host: discord.Member = commands.Author):
         user = host
+        member_role = f"<@&{config_data["guild-settings"][ctx.guild.id]["member_role"]}>"
         embedvar = discord.Embed(
             title=f"{type} Training",
             description=f"### Host: <@{user.id}>\nTime: <t:{time_unix}:t>, <t:{time_unix}:R>\n\n{text}",
@@ -47,13 +46,14 @@ class Events(commands.Cog):
         )
         embedvar.set_footer(text=f"ID: {self.bot.interaction_id}")
         
-        await ctx.send(f"<@&1326784766812360725>", embed=embedvar)
+        await ctx.send(f"{member_role}", embed=embedvar)
 
     @commands.check(is_faction_check)
     @commands.has_any_role(*admin_roles)
     @commands.hybrid_command(with_app_command = True, brief = "Hosts a tryout.")
     async def tryout(self, ctx, time_unix: int, location: str, text: str, host: discord.Member = commands.Author):
         user = host
+        member_role = f"<@&{config_data["guild-settings"][ctx.guild.id]["member_role"]}>"
         embedvar = discord.Embed(
             title="A tryout is being hosted!",
             description=f"### Host: <@{user.id}>\nTime: <t:{time_unix}:t>, <t:{time_unix}:R>\nPlace: {location}\n\n{text}",
@@ -62,7 +62,7 @@ class Events(commands.Cog):
         )
         embedvar.set_footer(text=f"ID: {self.bot.interaction_id}")
         
-        await ctx.send(f"<@&1375757830199443506>", embed=embedvar)
+        await ctx.send(f"{member_role}", embed=embedvar)
 
 async def setup(bot):
     await bot.add_cog(Events(bot=bot))

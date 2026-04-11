@@ -16,46 +16,49 @@ class Points(commands.Cog):
     @commands.has_any_role(*admin_roles)
     @commands.hybrid_command(with_app_command = True, brief = "Increases a user's points.")
     async def points_increase(self, ctx, target: discord.User, amount: int):
-        guild_name = ctx.guild.name.replace(" ", "_")
-        cur_amount = await load(SAVE, guild_name, __name__)
+        guild_id = ctx.guild.id
+        cur_amount = await load(SAVE, guild_id, "points", "id", target.id)
         if cur_amount is None:
-            await add(SAVE, guild_name, target.id, 0)
-            await add(SAVE, guild_name, ...)
+            await add(SAVE, guild_id, "points", 0)
+            await add(SAVE, guild_id, "id", target.id)
             cur_amount = 0
-        await edit(SAVE, guild_name, target.id, cur_amount+amount)
-        await ctx.reply(f"Increased {amount} point(s) to: {target.id}.")
+        await edit(SAVE, guild_id, "points", "id", target.id, cur_amount+amount)
+        await ctx.reply(f"Increased {amount} point(s) to: {target.username}.")
 
     @commands.has_any_role(*admin_roles)
     @commands.hybrid_command(with_app_command = True, brief = "Decreases a user's points.")
     async def points_decrease(self, ctx, target: discord.User, amount: int):
-        guild_name = ctx.guild.name.replace(" ", "_")
-        cur_amount = await load(SAVE, guild_name, target.id)
+        guild_id = ctx.guild.id
+        cur_amount = await load(SAVE, guild_id, "points", "id", target.id)
         if cur_amount is None:
-            await add(SAVE, guild_name, target.id, 0)
+            await add(SAVE, guild_id, "points", 0)
+            await add(SAVE, guild_id, "id", target.id)
             cur_amount = 0
-        await edit(SAVE, guild_name, target.id, cur_amount-amount)
-        await ctx.reply(f"Decreased {amount} point(s) to: {target.id}.")
+        await edit(SAVE, guild_id, "points", "id", target.id, cur_amount+amount)
+        await ctx.reply(f"Decreased {amount} point(s) to: {target.username}.")
 
     @commands.has_any_role(*admin_roles)
     @commands.hybrid_command(with_app_command = True, brief = "Sets a user's points to a set amount")
     async def points_set(self, ctx, target: discord.User, amount: int):
-        guild_name = ctx.guild.name.replace(" ", "_")
-        cur_amount = await load(SAVE, guild_name, target.id)
+        guild_id = ctx.guild.id
+        cur_amount = await load(SAVE, guild_id, "points", "id", target.id)
         if cur_amount is None:
-            await add(SAVE, guild_name, target.id, amount)
+            await add(SAVE, guild_id, "points", amount)
+            await add(SAVE, guild_id, "id", target.id)
         else:
-            await edit(SAVE, guild_name, target.id, amount)
-        await ctx.reply(f"Set to {amount} point(s) to: {target.id}.")
+            await edit(SAVE, guild_id, "points", "id", target.id, amount)
+        await ctx.reply(f"Set {amount} point(s) to: {target.username}.")
 
     @commands.has_any_role(*admin_roles)
     @commands.hybrid_command(with_app_command = True, brief = "Returns the mentioned user's points")
     async def points_amount(self, ctx, target: discord.User = commands.Author):
-        guild_name = ctx.guild.name.replace(" ", "_")
-        cur_amount = await load(SAVE, guild_name, target.id)
+        guild_id = ctx.guild.id
+        cur_amount = await load(SAVE, guild_id, "points", "id", target.id)
         if cur_amount is None:
-            await add(SAVE, guild_name, target.id, 0)
+            await add(SAVE, guild_id, "points", 0)
+            await add(SAVE, guild_id, "id", target.id)
             cur_amount = 0
-        await ctx.reply(f"{target.id} has {cur_amount} point(s)")
+        await ctx.reply(f"{target.username} has {cur_amount} point(s)")
 
     async def cog_command_error(self, ctx, error):
         #! Refer to the error dict in main file for the error codes.
