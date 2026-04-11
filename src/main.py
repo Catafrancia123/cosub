@@ -1,10 +1,6 @@
-BOTVER = "0.2.1-dev2"
-""" Version 0.2.1-dev2:
-    - Added status message (startup and shutdown)
-    - Edited the saveloader
-    - Updated README 
-    - Updated config.toml format
-    - Ping command now has text processing time
+BOTVER = "0.2.1-dev3"
+""" Version 0.2.1-dev3:
+    - Shift system (soon)
 """
 
 """ TOML vs DB

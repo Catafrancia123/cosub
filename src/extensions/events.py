@@ -7,7 +7,7 @@ with open("config.toml", "r") as config:
     admin_roles = config_data["guild-settings"]["admin_roles"]
     
 def is_faction_check(ctx):
-    server_name = ctx.guild.name.replace(":", " ").replace(" ", "-")
+    server_name = ctx.guild.name.lower().replace(":", " ").replace(" ", "-")
     is_faction = config_data["guild-settings"][server_name]["faction"]
     return is_faction
 
