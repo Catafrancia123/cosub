@@ -1,4 +1,4 @@
-![Version](https://img.shields.io/badge/version-0.2.1--dev1-blue?style=plastic)
+![Version](https://img.shields.io/badge/version-0.2.1--dev2-blue?style=plastic)
 ![Python Versions](https://img.shields.io/badge/python-3.12%20%7C%203.13%20%7C%203.14%20-blue?style=plastic)
 [![Discord](https://img.shields.io/discord/990326151987724378?logo=discord&logoColor=white&color=5865F2)](https://discord.gg/BHUxXKwTfA) 
 
