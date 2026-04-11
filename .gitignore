@@ -193,12 +193,18 @@ cython_debug/
 .cursorignore
 .cursorindexingignore
 
+# Vim cache
+*.py~
+
 # misc
 src/config.json
 src/test.py
 src/commands/test.py
+compile.sh
+*.zip
 *.db
 *.db-shm
 *.db-wal
 *.sqbpro
 *.toml
+*.txt

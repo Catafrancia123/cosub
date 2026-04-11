@@ -1,12 +1,15 @@
-import datetime, discord, tomllib, sys, os
+import discord, toml, sys, os
 import discord.ui as UI
+from utils.logs import write_traceback
+from schemas.saveloader import load
+from datetime import datetime
 from extensions import EXT_LIST
 from discord.ext import commands
 from rich import print as rprint
 
-with open("config.toml", "rb") as config:
-    data = tomllib.load(config)
-    admin_roles = data["guild-settings"]["admin_roles"]
+with open("config.toml", "r") as config:
+    config_data = toml.load(config)
+    admin_roles = config_data["guild-settings"]["admin_roles"]
     
 def clear():
     if sys.platform.startswith(('win32')):
@@ -14,10 +17,10 @@ def clear():
     elif sys.platform.startswith(('linux', 'cygwin', 'darwin', 'freebsd')):
         os.system('clear')             
 
-class Maintenance(commands.Cog):    
+class Maintenance(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
-        self.time_format = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        self.time_format = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 
     @commands.has_any_role(*admin_roles)
     @commands.command(brief = "Shuts down the bot manually.")
@@ -25,26 +28,54 @@ class Maintenance(commands.Cog):
         user = ctx.author
         await ctx.reply(f"Bot shutdown initated by {user.name}.")
         rprint(f'[grey]{self.time_format}[/grey] [[light_blue]EVN 01[/light_blue]] Bot shutdown initiated by {user.name}')
+        
+        startup_embed = discord.Embed(
+            title="Bot Status",
+            description=f"Bot has been shutdown, please wait for the next startup.",
+            color=discord.Color.red(),
+        )
+        startup_embed.set_thumbnail(url=self.bot.user.avatar.url)
+        startup_embed.set_footer(text=f"ID: {self.bot.interaction_id}")
+        server_names = [server.name.replace(":", " ").replace(" ", "-") for server in self.bot.guilds] #* oneliner because why not
+        for name in server_names:
+            try:
+                channel_id = config_data["guild-settings"][name]["startup_channel"]
+                if channel_id == 0: continue
+                startup_channel = self.bot.get_channel(channel_id)
+                status_message = await startup_channel.fetch_message(await load("./save.db", "server_info", "startup_message_id", "name", name))
+            except Exception as e:
+                rprint(f'[grey]{self.time_format}[/grey] [[bright_red]ERROR[/bright_red]] Something went wrong, please check error.log.')
+                write_traceback(e)
+                continue
+
+            await status_message.edit(content=f"Bot shutdown by: {user.name}", embed=startup_embed)
+            rprint(f"[grey]{self.time_format}[/grey] [[light_green]SUCCESSFUL[/light_green]] Sent shutdown message to guild: {name}")
         await self.bot.close()
 
     @commands.hybrid_command(with_app_command = True, brief = "Shows the average ping of the bot.")
     async def ping(self, ctx):
-        await ctx.reply(f"Discord Bot => {round(self.bot.latency*1000)}ms\n")
+        msg_process_time = (datetime.now().timestamp() - ctx.message.created_at.timestamp()) * 1000
+        await ctx.reply(f"Bot Latency => {round(self.bot.latency*1000)}ms\nMessage Processing => {round(msg_process_time)}ms")
 
     @commands.command(brief = "Used to sync commands.")
     @commands.is_owner()
     async def sync(self, ctx):
+        loaded_modules = config_data["bot-settings"]["loaded_modules"]
+        for ext in EXT_LIST:
+            if ext.name.replace("extensions.", "") not in loaded_modules:
+                EXT_LIST.remove(ext)
         user = ctx.author
         clear()
         rprint(f'[grey]{self.time_format}[/grey] [[light_blue]EVN 02[/light_blue]] Bot extension sync initiated by {user.name}')
-        for ext in EXT_LIST: #! <-- The number here represents how much modules is unloaded.
+        for ext in EXT_LIST:
             try:   
                 await self.bot.reload_extension(ext.name)
                 rprint(f'[grey]{self.time_format}[/grey] [[light_green]SUCCESSFUL[/light_green]] Module \"{ext.name}\" has been reloaded.')
             except Exception as e:
                 rprint(f'[grey]{self.time_format}[/grey] [[bright_red]ERROR[/bright_red]] Module \"{ext.name}\" failed to reload.')
-                print(e)
+                write_traceback(e)
         await self.bot.tree.sync()
+        rprint(f'[grey]{self.time_format}[/grey] [[light_green]COMPLETE[/light_green]] Bot has completed syncing.')
         await ctx.reply("All commands have been synced.")
 
     @commands.command(brief="This is a test command.")
@@ -54,18 +85,28 @@ class Maintenance(commands.Cog):
         embedvar = discord.Embed(
             title="Test command!!!",
             description="Button test and a timestamp test below!",
-            color=discord.Color.blue(),
-            timestamp=datetime.datetime.now(),
-        )
-        servers = [names for names in self.bot.guilds]
-        await ctx.reply(f"{servers.name}", embed=embedvar, view=ui_buttons)
+            color=discord.Color.random(),
+            timestamp=datetime.now(),
+        )            
+        embedvar.set_footer(text=f"ID: {self.bot.interaction_id}")
+        await ctx.reply(embed=embedvar, view=ui_buttons)
 
+    """@commands.hybrid_command(brief="Runs SQL code for DB adjustments.")
+    @commands.is_owner()
+    async def run_sql(self, ctx, *args):
+        code = " ".join(args)
+        async with asqlite.connect("save.db") as conn, conn.cursor() as db:
+            await db.execute(code)
+
+        await ctx.reply(f"Ran SQL Code:\n```{code}```", ephemeral=True)"""
+        
     async def cog_command_error(self, ctx, error):
         user = ctx.author
-        if isinstance(error, commands.MissingAnyRole):
-            await ctx.reply(self.bot.make_error_embed(user.name, 4))
+        #! Refer to the error dict in main file for the error codes.
         if isinstance(error, commands.NotOwner):
-            await ctx.reply(self.bot.make_error_embed(user.name, 12))
+            await ctx.reply(embed=self.make_error_embed(user.name, 12))
+        else:
+            await self.bot.on_command_error(ctx, error)
 
 class ButtonInteractions(UI.View):
     def __init__(self, timeout_duration_seconds: int = 180):
@@ -81,7 +122,6 @@ class ButtonInteractions(UI.View):
     async def test_2(self, interaction: discord.Interaction, button: discord.ui.Button):
         await interaction.response.send_message('Running test_button 2', ephemeral=True)
         self.stop()
-
 
 async def setup(bot):
     await bot.add_cog(Maintenance(bot=bot))
