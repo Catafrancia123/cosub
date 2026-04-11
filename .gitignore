@@ -207,3 +207,4 @@ compile.sh
 *.db-wal
 *.sqbpro
 *.toml
+*.txt

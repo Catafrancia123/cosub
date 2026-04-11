@@ -1,5 +1,7 @@
-import discord, toml, sys, os, asqlite
+import discord, toml, sys, os
 import discord.ui as UI
+from utils.logs import write_traceback
+from schemas.saveloader import load
 from datetime import datetime
 from extensions import EXT_LIST
 from discord.ext import commands
@@ -26,11 +28,34 @@ class Maintenance(commands.Cog):
         user = ctx.author
         await ctx.reply(f"Bot shutdown initated by {user.name}.")
         rprint(f'[grey]{self.time_format}[/grey] [[light_blue]EVN 01[/light_blue]] Bot shutdown initiated by {user.name}')
+        
+        startup_embed = discord.Embed(
+            title="Bot Status",
+            description=f"Bot has been shutdown, please wait for the next startup.",
+            color=discord.Color.red(),
+        )
+        startup_embed.set_thumbnail(url=self.bot.user.avatar.url)
+        startup_embed.set_footer(text=f"ID: {self.bot.interaction_id}")
+        server_names = [server.name.replace(":", " ").replace(" ", "-") for server in self.bot.guilds] #* oneliner because why not
+        for name in server_names:
+            try:
+                channel_id = config_data["guild-settings"][name]["startup_channel"]
+                if channel_id == 0: continue
+                startup_channel = self.bot.get_channel(channel_id)
+                status_message = await startup_channel.fetch_message(await load("./save.db", "server_info", "startup_message_id", "name", name))
+            except Exception as e:
+                rprint(f'[grey]{self.time_format}[/grey] [[bright_red]ERROR[/bright_red]] Something went wrong, please check error.log.')
+                write_traceback(e)
+                continue
+
+            await status_message.edit(content=f"Bot shutdown by: {user.name}", embed=startup_embed)
+            rprint(f"[grey]{self.time_format}[/grey] [[light_green]SUCCESSFUL[/light_green]] Sent shutdown message to guild: {name}")
         await self.bot.close()
 
     @commands.hybrid_command(with_app_command = True, brief = "Shows the average ping of the bot.")
     async def ping(self, ctx):
-        await ctx.reply(f"Bot Latency => {round(self.bot.latency*1000)}ms\n")
+        msg_process_time = (datetime.now().timestamp() - ctx.message.created_at.timestamp()) * 1000
+        await ctx.reply(f"Bot Latency => {round(self.bot.latency*1000)}ms\nMessage Processing => {round(msg_process_time)}ms")
 
     @commands.command(brief = "Used to sync commands.")
     @commands.is_owner()
@@ -48,7 +73,7 @@ class Maintenance(commands.Cog):
                 rprint(f'[grey]{self.time_format}[/grey] [[light_green]SUCCESSFUL[/light_green]] Module \"{ext.name}\" has been reloaded.')
             except Exception as e:
                 rprint(f'[grey]{self.time_format}[/grey] [[bright_red]ERROR[/bright_red]] Module \"{ext.name}\" failed to reload.')
-                print(e)
+                write_traceback(e)
         await self.bot.tree.sync()
         rprint(f'[grey]{self.time_format}[/grey] [[light_green]COMPLETE[/light_green]] Bot has completed syncing.')
         await ctx.reply("All commands have been synced.")

@@ -23,20 +23,25 @@ async def check_table(path: str, table: str):
 	PRIMARY KEY("name") ON CONFLICT ABORT
     );""")
 
-async def edit(path: str, table: str, value_index: str, value):
+async def edit(path: str, table: str, value_column: str, ref_column: str, ref_value, value):
     """
     Edits a existing data to a database file.
     
     Args:
         path (str): The path of the database file.
         table (str): The table that the data will is in.
-        value_index (str): The data's name.
+        value_column (str): The data's column
+        ref_column (str): The refrence data's column
+        ref_value (any): The refrence data
         value (any): The data you want to insert.
     """
 
     async with asqlite.connect(path) as conn, conn.cursor() as db:
-        code = f"UPDATE OR ABORT {table} SET value = ? WHERE id = ?"
-        await db.execute(code, value, value_index)
+        code = f"UPDATE OR REPLACE {table} SET {value_column} = ? WHERE {ref_column} = ?"
+        "UPDATE OR REPLACE server_info SET prefix = bt WHERE name = bot-test"
+        try:
+            await db.execute(code, (value,ref_value))
+        except Exception: pass
         await conn.commit()
 
 async def add(path: str, table: str, value_index: str, value):
@@ -51,32 +56,39 @@ async def add(path: str, table: str, value_index: str, value):
     """
 
     async with asqlite.connect(path) as conn, conn.cursor() as db:
-        code = f"INSERT OR ABORT INTO {table} (id, value) VALUES(?,?)"
-        await db.execute(code, (value_index, value))     
+        code = f"INSERT OR REPLACE INTO {table} ({value_index}) VALUES(?)"
+        "INSERT OR REPLACE INTO 'server_info' ('name') VALUES('bot test')"
+        try:
+            await db.execute(code, (value,)) 
+        except Exception: pass
         await conn.commit()
 
-async def load(path: str, table: str, column: str, value_index: str) -> any:
+async def load(path: str, table: str, value_column: str, ref_column: str, ref_value: any) -> any:
     """
     Loads data from a database file.
     
     Args:
         path (str): The path of the database file.
-        table (str): The table that the data is in.
-        column (str): The column the data is in.
-        value_index (str): The data's name.
-        
+        table (str): The table that the data is in.    
+        value_column (str): The data's column
+        ref_column (str): The refrence data's column
+        ref_value (any): The refrence data
+    
     Returns: 
         any: The data itself.
     """
 
     async with asqlite.connect(path) as conn, conn.cursor() as db:
-        code = f"SELECT {column} FROM {table} WHERE id = ?"
-        "SELECT points FROM bot_test WHERE id = 1233456667"
-        await db.execute(code, (value_index))
-        data = await db.fetchone()
+        code = f"SELECT {value_column} FROM {table} WHERE {ref_column} = ?"
+        "SELECT startup_message_id FROM server_info WHERE name = bot-test"
+        try:
+            await db.execute(code, (ref_value,))
+            data = await db.fetchone()
+        except Exception:
+            raise KeyError("Data not found.")
 
     if data is not None:
         return data[0]
     
 if __name__ == "__main__":
-    print(asyncio.run(load("../save.db", "social_credit", "catamapp")))
+    print(asyncio.run(load("./save.db", "server_info", "startup_message_id", "name", "bot-test")))

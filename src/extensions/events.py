@@ -7,7 +7,8 @@ with open("config.toml", "r") as config:
     admin_roles = config_data["guild-settings"]["admin_roles"]
     
 def is_faction_check(ctx):
-    is_faction = config_data["guild-settings"][ctx.guild.name.replace(" ", "-")]["faction"]
+    server_name = ctx.guild.name.replace(":", " ").replace(" ", "-")
+    is_faction = config_data["guild-settings"][server_name]["faction"]
     return is_faction
 
 class Events(commands.Cog):
@@ -18,7 +19,8 @@ class Events(commands.Cog):
     @commands.has_any_role(*admin_roles)
     @commands.hybrid_command(with_app_command = True, brief = "Hosts a deployment.")
     async def deployment(self, ctx, time_unix: int, location: str, text: str, host: discord.Member = commands.Author):
-        member_role = f"<@&{config_data["guild-settings"][ctx.guild.name.replace(" ", "-")]["member_role"]}>"
+        server_name = ctx.guild.name.replace(":", " ").replace(" ", "-")
+        member_role = f"<@&{config_data["guild-settings"][server_name]["member_role"]}>"
         user = host
         embedvar = discord.Embed(
             title="Deployment",

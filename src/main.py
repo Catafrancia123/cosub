@@ -1,9 +1,11 @@
-BOTVER = "0.2.1-dev1"
-""" Version 0.2.1-dev1:
-    - Modified config.toml structure for better organization
-    - Rewrote README.md
-    - Added checks for faction-based commands
-    - Added settings system"""
+BOTVER = "0.2.1-dev2"
+""" Version 0.2.1-dev2:
+    - Added status message (startup and shutdown)
+    - Edited the saveloader
+    - Updated README 
+    - Updated config.toml format
+    - Ping command now has text processing time
+"""
 
 """ TOML vs DB
 TOML guilds are written with a dash (-): bot-test
@@ -14,7 +16,7 @@ DB guilds are written with a underscore (_): bot_test
 import discord, os, sys, asyncio, playsound3, logging, logging.handlers, asqlite, toml, pathlib
 from datetime import datetime
 from utils.logs import write_traceback
-from schemas.saveloader import check_table
+from schemas.saveloader import check_table, add, edit
 from aiohttp.client_exceptions import ClientConnectorDNSError
 from extensions import EXT_LIST
 from discord.ext import commands
@@ -28,15 +30,20 @@ def clear():
 
 #* get config data
 SAVE = "save.db"
-with open("config.toml", "r") as file:
-    config_data = toml.load(file)
+try:
+    with open("config.toml", "r") as file:
+        config_data = toml.load(file)
+except Exception:
+    if "src" not in str(pathlib.Path("./").cwd()):
+        raise Exception("Please run this file from the src directory and not from anywhere else.\nThis is to prevent import errors.")
 
 class Bot(commands.Bot):
-    def __init__(self, *args, ext: list[str], **kwargs):
+    def __init__(self, *args, **kwargs):
         #* interaction_id is basically for the embeds
         self.__version__ = BOTVER
         self.interaction_id = 1
-        self.ext = ext
+        self.ext = kwargs["ext"]
+        self.logger = kwargs["logger"]
         super().__init__(*args, **kwargs)
     
     def make_error_embed(self, username : str, error_code : int, error_msg : str = None) -> discord.Embed:
@@ -58,7 +65,7 @@ class Bot(commands.Bot):
                 4:"You don't have permission to run this command.",
                 5:"Server Error. Please try again later.",
                 6:"This server doesnt allow the command above to be run. Please contact your server administrator.",
-                7:"BLANK",
+                7:"The Bot does not have permissions to run the command. Please contact your server administrator.",
                 8:"Intents not properly enabled. Please contact a developer.",
                 9:"Connection with Discord has closed. Please contact a developer.",
                 10:"Database failed to save/load data. Please contact a developer.", 
@@ -86,24 +93,43 @@ class Bot(commands.Bot):
         time_format = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         startup_embed = discord.Embed(
             title="Bot Status",
-            description=f"> Bot has been online since:\n<t:{round(datetime.now().timestamp())}:f>",
-            color=discord.Color.brand_green(),
+            description=f"Bot has been online since:\n<t:{round(datetime.now().timestamp())}:f>\nBot Version: {BOTVER}",
+            color=discord.Color.green(),
         )
         startup_embed.set_thumbnail(url=self.user.avatar.url)
         startup_embed.set_footer(text=f"ID: {self.interaction_id}")
-        server_names = [server.name.replace(" ", "-") for server in self.guilds]
+        server_names = [server.name.replace(":", " ").replace(" ", "-").lower() for server in self.guilds] #* oneliner because why not
+        
+        try:
+            username = config_data['bot-settings']['local_username']
+        except Exception:
+            username = "admin"
+            
         for name in server_names:
+            #* db setup for servers
+            file = "./save.db"
+            await add(file, "server_info", "name", name) # name field is unique
+            
+            #* get prefix
+            text_list = list(name)
+            prefix = text_list[0]
+            for letter in text_list:
+                if letter == "-":
+                    prefix += text_list[text_list.index(letter) + 1]
+                elif letter == "-" and text_list[text_list.index(letter) + 1] == "-": break
+            await edit(file, "server_info", "prefix", "name", name, prefix)
+            
+            #* startup message id thing
             try:
                 channel_id = config_data["guild-settings"][name]["startup_channel"]
-                if channel_id != 0:
-                    print("hello world")
-                    startup_channel = self.get_channel(channel_id)
-                    print(startup_channel.message_count)
-                    await startup_channel.delete_messages([startup_channel.last_message_id])
-                    await startup_channel.send(embed=startup_embed)
-                    rprint(f"[grey]{time_format}[/grey] [[light_green]SUCCESSFUL[/light_green]] Sent status message to guild: {name}")
+                if channel_id == 0: continue
             except Exception:
-                pass
+                rprint(f'[grey]{time_format}[/grey] [[bright_yellow]WARNING[/bright_yellow]] No startup channel defined for guild: {name}')
+                continue
+            startup_channel = self.get_channel(channel_id)
+            await startup_channel.send(f"Bot startup by: {username}", embed=startup_embed)
+            await edit(file, "server_info", "startup_message_id", "name", name, startup_channel.last_message_id)
+            rprint(f"[grey]{time_format}[/grey] [[light_green]SUCCESSFUL[/light_green]] Sent status message to guild: {name}")
 
     async def setup_hook(self):
         time_format = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
@@ -114,13 +140,14 @@ class Bot(commands.Bot):
                 rprint(f'[grey]{time_format}[/grey] [[light_green]SUCCESSFUL[/light_green]] Module \"{ext.name}\" has been loaded.')
             except Exception as e:               
                 rprint(f'[grey]{time_format}[/grey] [[bright_red]ERROR[/bright_red]] Module \"{ext.name}\" failed to load.')
-                print(e)
                 write_traceback(e)
+        self.logger.info("Bot Startup: 5/6, loaded all extensions required (check config.toml for extensions loaded)")
     
         await self.load_extension("jishaku")
         rprint(f'[grey]{time_format}[/grey] [[light_green]SUCCESSFUL[/light_green]] Module \"jishaku\" has been loaded.')
         rprint(f"[grey]{time_format}[/grey] [[bright_yellow]WARNING[/bright_yellow]] Please ping catamapp for bot maintenance/unknown errors.")
         asyncio.create_task(self.startup_setup())
+        self.logger.info("Bot Startup: 6/6, startup complete.")
         rprint(f'[grey]{time_format}[/grey] [[light_green]COMPLETE[/light_green]] Bot has completed startup and now can be used.')
         try:
             await asyncio.run(playsound3.playsound("sounds/beep.wav"))
@@ -146,6 +173,8 @@ class Bot(commands.Bot):
             await ctx.reply(embed=self.make_error_embed(user.name,5))
         elif isinstance(error, commands.CheckFailure):
             await ctx.reply(embed=self.make_error_embed(user.name,6))
+        elif isinstance(error, discord.Forbidden):
+            await ctx.reply(embed=self.make_error_embed(user.name,7))
         else:
             await ctx.reply(embed=self.make_error_embed(user.name,99,error))
             write_traceback(error)
@@ -170,13 +199,17 @@ async def main():
     formatter = logging.Formatter('[{asctime}] {name}: {message}', dt_fmt, style='{')
     handler.setFormatter(formatter)
     logger.addHandler(handler)
+    logger.info("Bot Startup: 1/6, logger set up.")
     rprint(f'[grey]{time_format}[/grey] [[light_green]SUCCESSFUL[/light_green]] Logger has been set up.')
 
     #* 2. Add stuff to bot
-    loaded_modules = config_data["bot-settings"]["loaded_modules"]
-    for ext in EXT_LIST:
-        if ext.name.replace("extensions.", "") not in loaded_modules:
-            EXT_LIST.remove(ext)
+    try:
+        loaded_modules = config_data["bot-settings"]["loaded_modules"]
+        for ext in EXT_LIST:
+            if ext.name.replace("extensions.", "") not in loaded_modules:
+                EXT_LIST.remove(ext)
+    except Exception:
+        rprint(f"[grey]{time_format}[/grey] [[bright_yellow]WARNING[/bright_yellow]] All extensions will be loaded.")
     intents = discord.Intents.default()
     intents.members = True #! can see members
     intents.message_content = True #! can see message content``
@@ -186,22 +219,29 @@ async def main():
         allowed_mentions=discord.AllowedMentions(roles=True, users=True, replied_user=True, everyone=True),
         description="Check out the code at: https://github.com/Catafrancia123/cosub",
         ext=EXT_LIST,
+        logger=logger,
     ) as bot:
+        logger.info("Bot Startup: 2/6, bot class created")
         #* 2.1 Check Database
-        server_names = [server.name.replace(" ", "_") for server in bot.guilds]
+        server_names = [server.name.replace(":", " ").replace(" ", "_").lower() for server in bot.guilds]
         for name in server_names:
             try:
                 await check_table(name)
             except Exception as e:
                 rprint(f'[grey]{time_format}[/grey] [[bright_red]ERROR[/bright_red]] Database table \"{name}\" failed to initialize.')
                 write_traceback(e)
+        logger.info("Bot Startup: 3/6, database ready.")
         rprint(f'[grey]{time_format}[/grey] [[light_green]SUCCESSFUL[/light_green]] Database ({asqlite.__name__} version [bright_yellow]{asqlite.__version__}[/bright_yellow]) has been set up.')
+        
+        #* 2.2 Last checks
+        try:
+            username = config_data["bot-settings"]["local_username"]
+        except Exception:
+            username = "admin"
 
-        #* 2.2 Load token and check cwd
+        #* 2.3 Load token
         token = config_data["bot-settings"]["bot_token"]
-        if "src" not in str(pathlib.Path("./").cwd()):
-            raise Exception("Please run this file from the src directory and not from anywhere else.\nThis is to prevent import errors.")
-
+        logger.info("Bot Startup: 4/6, starting up on discord")
         try:
             await bot.start(token, reconnect=True)
         except ClientConnectorDNSError:
