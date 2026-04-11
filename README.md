@@ -7,7 +7,7 @@ cosub (short for Catamapp's Open Source Utilities Bot) is a open source discord 
 
 This is a open source, discord general utilities bot for factions and more. The bot can be used to manage shifts, host trainings and even add points while topped off with a bit of humor. This bot is open to contributions, just fork the repo and once the changes are done, make a pull request and i will check it.
 > [!NOTE]
-> The bot isn't fully completed yet, there are many commands to add or even debug. Also, this is the dev branch, expect lots of errors.
+> The bot isn't fully completed yet, there are many commands to add or even debug.
 # Download
 ## Prerequesites/Dependencies
 What you need to run the bot is the newest Python version (3.12+), find [here](https://python.org "Official Python Website"). And some third party packages listed below:
