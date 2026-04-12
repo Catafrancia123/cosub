@@ -1,6 +1,9 @@
 BOTVER = "0.2.1-dev3"
 """ Version 0.2.1-dev3:
     - Changed toml and db to store servers by id and not name
+    - Finished shift system
+    - Working on settings system
+    - Restructured saveloader and new function to check data
 """
 
 """ TOML vs DB
@@ -12,7 +15,7 @@ DB guilds are written with a underscore (_): bot_test
 import discord, os, sys, asyncio, playsound3, logging, logging.handlers, asqlite, toml, pathlib
 from datetime import datetime
 from utils.logs import write_traceback
-from schemas.saveloader import check_table, add, edit
+from schemas.saveloader import check_table, add, edit, load
 from aiohttp.client_exceptions import ClientConnectorDNSError
 from extensions import EXT_LIST
 from discord.ext import commands
@@ -99,12 +102,12 @@ class Bot(commands.Bot):
             username = config_data['bot-settings']['local_username']
         except Exception:
             username = "admin"
-            
+
+        #* 2.2 Check Database
         for server in self.guilds:
-            #* db setup for servers
-            file = "./save.db"
-            await add(file, "server_info", "id", server.id)
- 
+            #* check if every server has its own table
+            await check_table(SAVE, server.id)
+            await add(SAVE, "server_info", "id", server.id) 
             #* startup message id thing
             try:
                 channel_id = config_data["guild-settings"][f"{server.id}"]["startup_channel"]
@@ -114,9 +117,16 @@ class Bot(commands.Bot):
                 write_traceback(e)
                 continue
             startup_channel = self.get_channel(channel_id)
+
+            for member in server.members:
+                if member.bot: continue
+                await add(SAVE, f"{server.id}", "id", member.id)
+
             await startup_channel.send(f"Bot startup by: {username}", embed=startup_embed)
-            await edit(file, "server_info", "startup_message_id", "id", server.id, startup_channel.last_message_id)
+            await edit(SAVE, "server_info", "startup_message_id", "id", server.id, startup_channel.last_message_id)
             rprint(f"[grey]{time_format}[/grey] [[light_green]SUCCESSFUL[/light_green]] Sent status message to guild: {server.name}")
+        self.logger.info("Bot Startup: 4/6, database ready.")
+        rprint(f'[grey]{time_format}[/grey] [[light_green]SUCCESSFUL[/light_green]] Database ({asqlite.__name__} version [bright_yellow]{asqlite.__version__}[/bright_yellow]) has been set up.')
 
     async def setup_hook(self):
         time_format = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
@@ -138,10 +148,9 @@ class Bot(commands.Bot):
         rprint(f'[grey]{time_format}[/grey] [[light_green]COMPLETE[/light_green]] Bot has completed startup and now can be used.')
         try:
             await asyncio.run(playsound3.playsound("sounds/beep.wav"))
-        except Exception as e:
+        except Exception:
             pass
-        
-    
+ 
     def on_app_command_completion(self):
         self.interaction_id += 1
 
@@ -209,25 +218,10 @@ async def main():
         logger=logger,
     ) as bot:
         logger.info("Bot Startup: 2/6, bot class created")
-        #* 2.1 Check Database
-        for server in bot.guilds:
-            try:
-                await check_table(server.id)
-            except Exception as e:
-                rprint(f'[grey]{time_format}[/grey] [[bright_red]ERROR[/bright_red]] Database table \"{name}\" failed to initialize.')
-                write_traceback(e)
-        logger.info("Bot Startup: 3/6, database ready.")
-        rprint(f'[grey]{time_format}[/grey] [[light_green]SUCCESSFUL[/light_green]] Database ({asqlite.__name__} version [bright_yellow]{asqlite.__version__}[/bright_yellow]) has been set up.')
         
-        #* 2.2 Last checks
-        try:
-            username = config_data["bot-settings"]["local_username"]
-        except Exception:
-            username = "admin"
-
-        #* 2.3 Load token
+        #* 2.1 Load token
         token = config_data["bot-settings"]["bot_token"]
-        logger.info("Bot Startup: 4/6, starting up on discord")
+        logger.info("Bot Startup: 3/6, starting up on discord")
         try:
             await bot.start(token, reconnect=True)
         except ClientConnectorDNSError:
