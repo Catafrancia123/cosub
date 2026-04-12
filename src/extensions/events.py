@@ -18,7 +18,9 @@ class Events(commands.Cog):
     @commands.has_any_role(*admin_roles)
     @commands.hybrid_command(with_app_command = True, brief = "Hosts a deployment.")
     async def deployment(self, ctx, time_unix: int, location: str, text: str, host: discord.Member = commands.Author):
-        member_role = f"<@&{config_data["guild-settings"][ctx.guild.id]["member_role"]}>"
+        member_role = f"<@&{config_data["guild-settings"][f"{ctx.guild.id}"]["member_role"]}>"
+        if member_role == 0:
+            member_role = "@everyone"
         user = host
         embedvar = discord.Embed(
             title="Deployment",
@@ -37,7 +39,9 @@ class Events(commands.Cog):
     @commands.hybrid_command(with_app_command = True, brief = "Hosts a training.")
     async def training(self, ctx, type: str, time_unix: int, text: str, host: discord.Member = commands.Author):
         user = host
-        member_role = f"<@&{config_data["guild-settings"][ctx.guild.id]["member_role"]}>"
+        member_role = f"<@&{config_data["guild-settings"][f"{ctx.guild.id}"]["member_role"]}>"
+        if member_role == 0:
+            member_role = "@everyone"
         embedvar = discord.Embed(
             title=f"{type} Training",
             description=f"### Host: <@{user.id}>\nTime: <t:{time_unix}:t>, <t:{time_unix}:R>\n\n{text}",
@@ -53,7 +57,9 @@ class Events(commands.Cog):
     @commands.hybrid_command(with_app_command = True, brief = "Hosts a tryout.")
     async def tryout(self, ctx, time_unix: int, location: str, text: str, host: discord.Member = commands.Author):
         user = host
-        member_role = f"<@&{config_data["guild-settings"][ctx.guild.id]["member_role"]}>"
+        member_role = f"<@&{config_data["guild-settings"][f"{ctx.guild.id}"]["member_role"]}>"
+        if member_role == 0:
+            member_role = "@everyone"
         embedvar = discord.Embed(
             title="A tryout is being hosted!",
             description=f"### Host: <@{user.id}>\nTime: <t:{time_unix}:t>, <t:{time_unix}:R>\nPlace: {location}\n\n{text}",
