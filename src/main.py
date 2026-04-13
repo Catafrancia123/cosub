@@ -120,6 +120,10 @@ class Bot(commands.Bot):
 
             for member in server.members:
                 if member.bot: continue
+                try:
+                    check = await load(SAVE, f"{server.id}", "points", "id", member.id)
+                    if check > 0: continue
+                except Exception: pass
                 await add(SAVE, f"{server.id}", "id", member.id)
 
             await startup_channel.send(f"Bot startup by: {username}", embed=startup_embed)
@@ -187,7 +191,7 @@ async def main():
     handler = logging.handlers.RotatingFileHandler(
         filename='bot.log',
         encoding='utf-8',
-        mode="w",
+       mode="w",
         maxBytes=16 * 1024 * 1024,  #! 16mb
         backupCount=5,  #! Rotate through 5 files
     )

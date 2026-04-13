@@ -38,8 +38,8 @@ async def edit(path: str, table: str, value_column: str, ref_column: str, ref_va
     """
 
     async with asqlite.connect(path) as conn, conn.cursor() as db:
-        code = f"UPDATE OR REPLACE '{table}' SET {value_column} = ? WHERE {ref_column} = ?"
-        "UPDATE OR REPLACE server_info SET prefix = bt WHERE name = bot-test"
+        code = f"UPDATE '{table}' SET {value_column} = ? WHERE {ref_column} = ?"
+        "UPDATE server_info SET prefix = bt WHERE name = bot-test"
         try:
             await db.execute(code, (value,ref_value))
         except Exception as e: print(e)
