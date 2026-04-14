@@ -1,4 +1,4 @@
-![Version](https://img.shields.io/badge/version-0.2.1--dev2-blue?style=plastic)
+![Version](https://img.shields.io/badge/version-0.2.1--dev3-blue?style=plastic)
 ![Python Versions](https://img.shields.io/badge/python-3.12%20%7C%203.13%20%7C%203.14%20-blue?style=plastic)
 [![Discord](https://img.shields.io/discord/990326151987724378?logo=discord&logoColor=white&color=5865F2)](https://discord.gg/BHUxXKwTfA) 
 
@@ -48,11 +48,8 @@ loaded_modules = ["maintenance", "humor", "settings"]
 # admin roles are the roles that have administrator/moderator permissions (FOR ALL SERVERS)
 admin_roles = [128880188670686008, 1378763072357011566]
 
-# server-name is your server name, with a few adjustments:
-# 1. Make sure every letter is in lowercase.
-# 2. Names with spaces will be changed by dashes (-): bot test -> bot-test
-# 3. Names with colons (:), change to a dash (-): TNO: Discord Server -> tno--discord-server
-[guild-settings.server-name]
+# server-id is the server id with parenthesis around it (so it can parse it)
+[guild-settings."server-id"]
 # member_role is the role id of a "member" role. Defaults to 0
 member_role = 0
 # startup_channel is an optional channel id for bot status. Defaults to 0

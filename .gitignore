@@ -195,6 +195,7 @@ cython_debug/
 
 # Vim cache
 *.py~
+*.swp
 
 # misc
 src/config.json

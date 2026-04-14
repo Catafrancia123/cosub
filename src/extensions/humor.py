@@ -17,7 +17,7 @@ class Humor(commands.Cog):
     @commands.hybrid_command(with_app_command = True, brief = "Classic RNG command.")
     async def roll(self, ctx, end_num: int):
         if end_num > 500:
-            await ctx.reply("Too much numbers, try again with numbers less than 500.")
+            await ctx.reply("Too many numbers, try again with numbers less than 500.")
         await ctx.reply(f":game_die: Rolled Number: {random.randint(1, end_num)}")
 
 async def setup(bot):
