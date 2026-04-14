@@ -3,7 +3,7 @@ BOTVER = "0.2.1-dev3"
     - Changed toml and db to store servers by id and not name
     - Finished shift system
     - Working on settings system
-    - Restructured saveloader and new function to check data
+    - Restructured SQL usage and a new function to check data
 """
 
 """ TOML vs DB
