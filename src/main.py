@@ -1,9 +1,8 @@
-BOTVER = "0.2.1-dev3"
-""" Version 0.2.1-dev3:
-    - Changed toml and db to store servers by id and not name
+BOTVER = "0.2.2-dev1"
+""" Version 0.2.2-dev1:
     - Finished shift system
-    - Working on settings system
-    - Restructured SQL usage and a new function to check data
+    - Finished settings system
+    - Information extension added (user info, bot info, etc)
 """
 
 """ TOML vs DB
