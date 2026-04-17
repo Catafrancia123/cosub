@@ -1,6 +1,6 @@
 #! This extension is in development, do not load it yet.
 
-import discord, datetime, time
+import discord, time, datetime
 import discord.ui as UI
 from schemas.saveloader import check_data, edit, load, add
 from discord.ext import commands
@@ -19,31 +19,50 @@ class Shift(commands.Cog):
         self.bot = bot
 
     @commands.check(check_shifts)
-    @commands.hybrid_command(brief="Manage and view your shifts.")
+    @commands.hybrid_command(brief="Manage and view your shifts.", aliases=["shift"])
     async def shift_info(self, ctx):
-        check = await check_data(SAVE, ctx.guild.id, "shift_status", "id", ctx.author.id)
+        user = ctx.author
+        check = await check_data(SAVE, ctx.guild.id, "shift_status", "id", user.id)
         if not check:
-            await add(SAVE, ctx.guild.id, "id", ctx.author.id)
+            await add(SAVE, ctx.guild.id, "id", user.id)
 
-        shift_status = load(SAVE, ctx.guild.id, "shift_status", "id", ctx.author.id)
+        shift_status = await load(SAVE, ctx.guild.id, "shift_status", "id", user.id) == 1
+       
+        # EMBED DESC VARS
+        shift_amount = await load(SAVE, ctx.guild.id, "shift_amount", "id", user.id)
+        total_time = await load(SAVE, ctx.guild.id, "shift_duration_seconds", "id", user.id)
+
+        if shift_amount <= 0:
+            avg_time = 0
+        else:
+            avg_time = seconds = total_time // shift_amount
+
+
+        embed_desc = f"""
+            **{"Shift Not Activated" if not shift_status else "Shift Activated"}**
+
+            Shift Count: {shift_amount}
+            Total Duration: {time.strftime('%H Hours, %M Minutes, %S Seconds', time.gmtime(total_time))}
+            Average Duration: {time.strftime('%H Hours, %M Minutes, %S Seconds', time.gmtime(avg_time))}
+        """
 
         if shift_status:
             embedvar = discord.Embed(
-                title="Shift Information",
-                description="Shift activated",
+                title=f"{user.avatar.url} {user.name}'s Shift Management",
+                description=embed_desc,
                 color=discord.Color.green(),
                 timestamp=datetime.datetime.now(),
             )
         elif not shift_status:
             embedvar = discord.Embed(
-                title="Shift Information",
-                description="Shift not activated",
+                title="Shift Management ",
+                description=embed_desc,
                 color=discord.Color.red(),
                 timestamp=datetime.datetime.now(),
             )
 
         ui_buttons = ButtonInteractions(bot=self.bot, timeout_seconds=180)
-        embedvar.set_footer(text=f"ID: {self.bot.interaction_id}")
+        embedvar.set_footer(text=f"ID: {self.bot.interaction_id} | Shift Type: default") # change shift type to align if the settings change
         await ctx.reply(embed=embedvar, view=ui_buttons)
         ButtonInteractions(bot=self.bot, shift_id=ctx.channel.last_message_id) # pass the message id
 
@@ -55,17 +74,17 @@ class ShiftSystem():
         self.guild = self.interaction.guild
 
     async def start(self):
-        self.start_time = datetime.now().timestamp()
+        self.start_time = datetime.datetime.now().timestamp()
         await edit(SAVE, self.guild.id, "shift_status", "id", self.interaction.user.id, 1) # no true/false in sql, use 1/0
 
     async def shift_break(self, status: bool): # status is whether you are doing a break/continuing 
         if status == True:
-             self.time_between_breaks.append(datetime.now().timestamp() - self.start_time)
+             self.time_between_breaks.append(datetime.datetime.now().timestamp() - self.start_time)
         elif status == False:
-            self.start_time = datetime.now().timestamp()
+            self.start_time = datetime.datetime.now().timestamp()
 
     async def end(self) -> int:
-        self.total_time = datetime.now().timestamp() - self.start_time
+        self.total_time = datetime.datetime.now().timestamp() - self.start_time
         for time in self.time_between_breaks:
             self.total_time += time
         self.time_elapsed = datetime.timedelta(seconds=int(self.total_time)) # final time in readable way

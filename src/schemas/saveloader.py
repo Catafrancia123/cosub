@@ -15,14 +15,22 @@ PK (Primary key) - Self-Explanatory.
 
 async def check_table(path: str, table: str):
     async with asqlite.connect(path) as conn, conn.cursor() as db:
+        # Make table for server
         await db.execute(f"""CREATE TABLE IF NOT EXISTS '{table}' (
-	"id"	                    INTEGER NOT NULL,
-	"points"	                INTEGER NOT NULL DEFAULT 0,
-	"shift_amount"	            INTEGER NOT NULL DEFAULT 0,
-	"shift_duration_seconds"	INTEGER NOT NULL DEFAULT 0,
-    "shift_status"              INTEGER NOT NULL DEFAULT 0,
-	PRIMARY KEY("id") ON CONFLICT FAIL
-    );""")
+        "id"	                    BLOB NOT NULL,
+        "points"	                INTEGER NOT NULL DEFAULT 0,
+        "shift_amount"	            INTEGER NOT NULL DEFAULT 0,
+        "shift_duration_seconds"	INTEGER NOT NULL DEFAULT 0,
+        "shift_status"              INTEGER NOT NULL DEFAULT 0,
+        PRIMARY KEY("id") ON CONFLICT FAIL
+        );""")
+
+        # make table for server info
+        await db.execute("""CREATE TABLE IF NOT EXISTS 'server_info' (
+        "id"                    BLOB NOT NULL UNIQUE,
+        "startup_message_id"    BLOB UNIQUE,
+        PRIMARY KEY("id") ON CONFLICT FAIL
+        );""")
 
 async def edit(path: str, table: str, value_column: str, ref_column: str, ref_value, value):
     """

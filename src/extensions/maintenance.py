@@ -23,7 +23,7 @@ class Maintenance(commands.Cog):
         self.time_format = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 
     @commands.has_any_role(*admin_roles)
-    @commands.command(brief = "Shuts down the bot manually.")
+    @commands.command(brief = "Shuts down the bot manually.", aliases=["kill"])
     async def shutdown(self, ctx):
         user = ctx.author
         await ctx.reply(f"Bot shutdown initated by {user.name}.", ephemeral=True)
