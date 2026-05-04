@@ -37,7 +37,6 @@ class Shift(commands.Cog):
         else:
             avg_time = seconds = total_time // shift_amount
 
-
         embed_desc = f"""
             **{"Shift Not Activated" if not shift_status else "Shift Activated"}**
 
@@ -46,23 +45,18 @@ class Shift(commands.Cog):
             Average Duration: {time.strftime('%H Hours, %M Minutes, %S Seconds', time.gmtime(avg_time))}
         """
 
+        embedvar = discord.Embed(
+            description=embed_desc,
+            color=discord.Color.blue(), # default is blue
+            timestamp=datetime.datetime.now(),
+        )
         if shift_status:
-            embedvar = discord.Embed(
-                title=f"{user.avatar.url} {user.name}'s Shift Management",
-                description=embed_desc,
-                color=discord.Color.green(),
-                timestamp=datetime.datetime.now(),
-            )
-        elif not shift_status:
-            embedvar = discord.Embed(
-                title="Shift Management ",
-                description=embed_desc,
-                color=discord.Color.red(),
-                timestamp=datetime.datetime.now(),
-            )
+            embedvar.color = discord.Color.green()
 
-        ui_buttons = ButtonInteractions(bot=self.bot, timeout_seconds=180)
+        ui_buttons = ButtonInteractions(bot=self.bot)
         embedvar.set_footer(text=f"ID: {self.bot.interaction_id} | Shift Type: default") # change shift type to align if the settings change
+        embedvar.set_author(name="Shift Management", icon_url=user.avatar.url)
+
         await ctx.reply(embed=embedvar, view=ui_buttons)
         ButtonInteractions(bot=self.bot, shift_id=ctx.channel.last_message_id) # pass the message id
 
@@ -106,14 +100,7 @@ class ButtonInteractions(UI.View):
             self.shift_message_id = kwargs["shift_id"]
         except Exception: pass
 
-        try:
-            super().__init__(timeout=kwargs["timeout_seconds"])
-        except Exception:
-            super().__init__(timeout=180) # default is 180 seconds
         self.is_break = False
-
-    async def check_status(interaction: discord.Interaction):
-        pass
 
     @discord.ui.button(label='Start shift', style=discord.ButtonStyle.green)
     async def start(self, interaction: discord.Interaction, button: discord.ui.Button):

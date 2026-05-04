@@ -26,12 +26,13 @@ class Points(commands.Cog):
     async def points_increase(self, ctx, target: discord.User, amount: int):
         guild_id = ctx.guild.id
         cur_amount = await load(SAVE, guild_id, "points", "id", target.id)
+        new_amount = cur_amount+amount
         if cur_amount is None:
             await add(SAVE, guild_id, "points", 0)
             await add(SAVE, guild_id, "id", target.id)
             cur_amount = 0
-        await edit(SAVE, guild_id, "points", "id", target.id, cur_amount+amount)
-        await ctx.reply(f"Increased {amount} point(s) to: {target.name}.")
+        await edit(SAVE, guild_id, "points", "id", target.id, new_amount)
+        await ctx.reply(f"Increased {amount} point(s) to: {target.name}.\n{target.name} now has {new_amount} point(s)")
 
     @commands.has_any_role(*admin_roles)
     @commands.check(check_points)
@@ -39,12 +40,13 @@ class Points(commands.Cog):
     async def points_decrease(self, ctx, target: discord.User, amount: int):
         guild_id = ctx.guild.id
         cur_amount = await load(SAVE, guild_id, "points", "id", target.id)
+        new_amount = cur_amount-amount
         if cur_amount is None:
             await add(SAVE, guild_id, "points", 0)
             await add(SAVE, guild_id, "id", target.id)
             cur_amount = 0
-        await edit(SAVE, guild_id, "points", "id", target.id, cur_amount+amount)
-        await ctx.reply(f"Decreased {amount} point(s) to: {target.name}.")
+        await edit(SAVE, guild_id, "points", "id", target.id, new_amount)
+        await ctx.reply(f"Decreased {amount} point(s) to: {target.name}.\n{target.name} now has {new_amount} point(s)")
 
     @commands.has_any_role(*admin_roles)
     @commands.check(check_points)

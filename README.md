@@ -37,25 +37,32 @@ Before running the bot, you need a `config.toml` file as the config for the bot 
 title = "Config file"
 
 [bot-settings]
-# local_username is your username, defaults to admin.
+# local_username is your local alias for the bot, defaults to admin.
 local_username = "admin"
 # self explanatory
 bot_token = "insert_discord_bot_token"
 # loaded_modules is a development config if you want to specify the modules loaded. (FOR ALL SERVERS)
 loaded_modules = ["maintenance", "humor", "settings"]
+# send_startup_message is a bot config whether or not to send a bot status messaage to the respective server's log channels. (FOR ALL SERVERS)
+send_startup_message = true
 
 [guild-settings]
-# admin roles are the roles that have administrator/moderator permissions (FOR ALL SERVERS)
+# admin roles are the roles that have administrator/moderator permissions (FOR ALL SERVERS).
+# this will be deprecated soon, instead a list for each server.
 admin_roles = [128880188670686008, 1378763072357011566]
 
-# server-id is the server id with parenthesis around it (so it can parse it)
+# server-id is the server id with parenthesis around it (so it can parse it).
 [guild-settings."server-id"]
-# member_role is the role id of a "member" role. Defaults to 0
+# member_role is the role id of a "member" role. Defaults to 0.
 member_role = 0
-# startup_channel is an optional channel id for bot status. Defaults to 0
-startup_channel = 0
+# startup_channel is an optional channel id for bot status. Defaults to 0.
+log_channel = 0
+
+## Faction stuff ##
 # faction is the activation of certain extensions (deployments, training, points, etc.) if your discord server is a faction. Defaults to false.
 faction = false
+# if you decide to activate the faction config, don't forget to add a log channel for events. Defaults to 0.
+event_log_channel = 0
 ```
 
 ## Running it

@@ -12,7 +12,7 @@ class Settings(commands.Cog):
     @commands.command(brief="Adjusts settings for the bot.")
     @commands.is_owner()
     async def settings(self, ctx):
-        ui_buttons = ButtonInteractions(timeout_duration_seconds=300)
+        ui_buttons = ButtonInteractions()
         embedvar = discord.Embed(
             title="Bot Settings",
             description="Use the arrows below to change between settings, and the Enable/Disable buttons to adjust settings.",
@@ -23,10 +23,6 @@ class Settings(commands.Cog):
         await ctx.reply(embed=embedvar, view=ui_buttons)
         
 class ButtonInteractions(UI.View):
-    def __init__(self, timeout_duration_seconds: int = 180):
-        self.timeout_duration_seconds = timeout_duration_seconds
-        super().__init__(timeout=self.timeout_duration_seconds)
-
     @discord.ui.button(label=" :arrow_backward: ", style=discord.ButtonStyle.gray)
     async def test_1(self, interaction: discord.Interaction, button: discord.ui.Button):
         await interaction.response.send_message('Running test_button 1...')

@@ -6,7 +6,7 @@ NULL - None
 INTEGER - int
 STRING - str
 REAL - decimals
-BLOB - any 
+INTEGER - any 
 
 1.1 Data Type Requirements
 NN (Not Null) - The data must not be empty.
@@ -17,7 +17,7 @@ async def check_table(path: str, table: str):
     async with asqlite.connect(path) as conn, conn.cursor() as db:
         # Make table for server
         await db.execute(f"""CREATE TABLE IF NOT EXISTS '{table}' (
-        "id"	                    BLOB NOT NULL,
+        "id"	                    INTEGER NOT NULL,
         "points"	                INTEGER NOT NULL DEFAULT 0,
         "shift_amount"	            INTEGER NOT NULL DEFAULT 0,
         "shift_duration_seconds"	INTEGER NOT NULL DEFAULT 0,
@@ -27,8 +27,9 @@ async def check_table(path: str, table: str):
 
         # make table for server info
         await db.execute("""CREATE TABLE IF NOT EXISTS 'server_info' (
-        "id"                    BLOB NOT NULL UNIQUE,
-        "startup_message_id"    BLOB UNIQUE,
+        "id"                        INTEGER NOT NULL UNIQUE,
+        "startup_message_id"        INTEGER,
+        "last_startup_message_id",  INTEGER,
         PRIMARY KEY("id") ON CONFLICT FAIL
         );""")
 
@@ -88,16 +89,24 @@ async def check_data(path: str, table: str, value_column: str, ref_column: str, 
     """
 
     async with asqlite.connect(path) as conn, conn.cursor() as db:
-        code = f"""
+        code = f"""	
         SELECT EXISTS (
             SELECT {value_column} FROM '{table}' 
             WHERE {ref_column} = ?
+            -- keep the func below for later
+            --HAVING ? NOT NULL
             LIMIT 1
         );"""
         await db.execute(code, (ref_value,))
         data = await db.fetchone()
-
-    return data[0] == 1
+        
+        match data[0]:
+            case 1: check = await load(path, table, value_column, ref_column, ref_value)
+            case 0: return False
+ 
+        match check:
+            case 0 | None: return False
+            case _: return True
 
 async def load(path: str, table: str, value_column: str, ref_column: str, ref_value: any) -> any:
     """
@@ -127,7 +136,4 @@ async def load(path: str, table: str, value_column: str, ref_column: str, ref_va
     return data[0]
     
 if __name__ == "__main__":
-    asyncio.run(add("./save.db", 1255514478607335605, "id", 751049879630905345))
-    asyncio.run(edit("./save.db", 1255514478607335605, "points", "id", 751049879630905345, 20))
-    print(asyncio.run(check_data("./save.db", 1255514478607335605, "points", "id", 751049879630905345)))
-    print(asyncio.run(load("./save.db", 1255514478607335605, "points", "id", 751049879630905345)))
+    print(asyncio.run(check_data("./save.db", "server_info", "last_startup_message_id", "id", 910687741380005978)))

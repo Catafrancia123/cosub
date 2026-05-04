@@ -10,12 +10,12 @@ from rich import print as rprint
 with open("config.toml", "r") as config:
     config_data = toml.load(config)
     admin_roles = config_data["guild-settings"]["admin_roles"]
-    
+
 def clear():
     if sys.platform.startswith(('win32')):
         os.system('cls')
     elif sys.platform.startswith(('linux', 'cygwin', 'darwin', 'freebsd')):
-        os.system('clear')             
+        os.system('clear')
 
 class Maintenance(commands.Cog):
     def __init__(self, bot):
@@ -26,27 +26,30 @@ class Maintenance(commands.Cog):
     @commands.command(brief = "Shuts down the bot manually.", aliases=["kill"])
     async def shutdown(self, ctx):
         user = ctx.author
-        await ctx.reply(f"Bot shutdown initated by {user.name}.", ephemeral=True)
+        await ctx.reply("Affirmative, self-destructing current instance...")
         rprint(f'[grey]{self.time_format}[/grey] [[light_blue]EVN 01[/light_blue]] Bot shutdown initiated by {user.name}')
         
         startup_embed = discord.Embed(
             title="Bot Status",
             description=f"Bot has been shutdown.\nPlease wait for the next startup.",
             color=discord.Color.red(),
+            timestamp=datetime.now()
         )
         startup_embed.set_thumbnail(url=self.bot.user.avatar.url)
         startup_embed.set_footer(text=f"ID: {self.bot.interaction_id}")
+        startup_embed.set_author(name=f"Shutdown initiated by {user.name}", icon_url=user.avatar.url)
         for server in self.bot.guilds:
             try:
-                channel_id = config_data["guild-settings"][f"{server.id}"]["startup_channel"]
+                channel_id = config_data["guild-settings"][f"{server.id}"]["log_channel"]
                 if channel_id == 0: continue
-                startup_channel = self.bot.get_channel(channel_id)
-                status_message = await startup_channel.fetch_message(await load("./save.db", "server_info", "startup_message_id", "id", server.id))
+                log_channel = self.bot.get_channel(channel_id)
+                message_id = await load("./save.db", "server_info", "startup_message_id", "id", server.id)
+                status_message = await log_channel.fetch_message(message_id)
             except Exception as e:
                 write_traceback(e)
                 continue
 
-            await status_message.edit(content=f"Bot shutdown by: {user.name}", embed=startup_embed)
+            await status_message.edit(embed=startup_embed)
             rprint(f"[grey]{self.time_format}[/grey] [[light_green]SUCCESSFUL[/light_green]] Sent shutdown message to guild: {server.name}")
         await self.bot.close()
 
@@ -55,30 +58,30 @@ class Maintenance(commands.Cog):
         msg_process_time = (datetime.now().timestamp() - ctx.message.created_at.timestamp()) * 1000
         await ctx.reply(f"Bot Latency => {round(self.bot.latency*1000)}ms\nMessage Processing => {round(msg_process_time)}ms")
 
-    @commands.command(brief = "Used to sync commands.")
+    @commands.command(brief = "Used to sync commands.", hidden=True)
     @commands.is_owner()
     async def sync(self, ctx):
-        loaded_modules = config_data["bot-settings"]["loaded_modules"]
-        for ext in EXT_LIST:
-            if ext.name.replace("extensions.", "") not in loaded_modules:
-                EXT_LIST.remove(ext)
         user = ctx.author
-        clear()
-        rprint(f'[grey]{self.time_format}[/grey] [[light_blue]EVN 02[/light_blue]] Bot extension sync initiated by {user.name}')
-        for ext in EXT_LIST:
+        rprint(f'\n[grey]{self.time_format}[/grey] [[light_blue]EVN 02[/light_blue]] Bot extension sync initiated by {user.name}')
+        for ext in self.bot.ext:
             try:   
                 await self.bot.reload_extension(ext.name)
                 rprint(f'[grey]{self.time_format}[/grey] [[light_green]SUCCESSFUL[/light_green]] Module \"{ext.name}\" has been reloaded.')
             except Exception as e:
                 rprint(f'[grey]{self.time_format}[/grey] [[bright_red]ERROR[/bright_red]] Module \"{ext.name}\" failed to reload.')
                 write_traceback(e)
+    
+        # Unloaded Extensions failsafe
+        if self.bot.unloaded_ext:
+            for ext in self.bot.unloaded_ext:
+                await self.load_extension(ext.name)
         await self.bot.tree.sync()
         rprint(f'[grey]{self.time_format}[/grey] [[light_green]COMPLETE[/light_green]] Bot has completed syncing.')
         await ctx.reply("All commands have been synced.")
 
-    @commands.command(brief="This is a test command.")
+    @commands.command(brief="This is a test command.", hidden=True)
     @commands.is_owner()
-    async def test(self, ctx):
+    async def test(self, ctx, test_arg = ["hello", "world"]):
         ui_buttons = ButtonInteractions(timeout_duration_seconds=120)
         embedvar = discord.Embed(
             title="Test command!!!",
@@ -87,7 +90,15 @@ class Maintenance(commands.Cog):
             timestamp=datetime.now(),
         )            
         embedvar.set_footer(text=f"ID: {self.bot.interaction_id}")
-        await ctx.reply(embed=embedvar, view=ui_buttons)
+        await ctx.reply(test_arg, embed=embedvar, view=ui_buttons)
+    
+    @commands.command(brief="Clear's the bot status log", hidden=True, aliases=["cls", "clear"])
+    @commands.is_owner()
+    async def clear_log(self, ctx):
+        user = ctx.author
+        clear()
+        rprint(f'\n[grey]{self.time_format}[/grey] [[light_blue]EVN 03[/light_blue]] Bot log clear initiated by {user.name}')
+        await ctx.reply("Cleared bot log.")
 
     """@commands.hybrid_command(brief="Runs SQL code for DB adjustments.")
     @commands.is_owner()

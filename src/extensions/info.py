@@ -12,37 +12,41 @@ class Information(commands.Cog):
         self.bot = bot
 
     @commands.hybrid_command(with_app_command = True, brief = "Gets a user's information", aliases=["user", "u", "member", "member_info"])
-    async def user_info(self, ctx, target: discord.User = commands.Author): 
-        user = target
+    async def user_info(self, ctx, target: discord.Member = commands.Author, target_id: int = 0): 
+        if target: user = target
+        elif target_id: user = await ctx.guild.fetch_member(target_id) 
+        is_member = type(user) == discord.Member
 
         # check for roles
-        roles_text = ""
-        for user_role in user.roles:
-            roles_text += f"{user_role.name}, "
+        if is_member:
+            roles_text = ""
+            for user_role in user.roles:
+                roles_text += f"{user_role.name}, "
 
-        timestamps = [user.created_at.timestamp(), user.joined_at.timestamp()]
-        timestamp_text = []
-        for timestamp in timestamps:
-            temp = floor(timestamp)
-            timestamp_text.append(f"<t:{temp}:R>")
+        timestamps = [user.created_at.timestamp()]
+        if is_member: timestamps.append(user.joined_at.timestamp())
+        for i, timestamp in enumerate(timestamps):
+            temp = round(timestamps[i])
+            temp = f"<t:{temp}:R>"
+            timestamps[i] = temp
 
         user_dict = {
             # user info
             "username": user.name,
-            "created": timestamp_text[0],
+            "created": timestamps[0],
             "id": user.id,
 
             # member info
             "break_line_1": 0,
-            "joined": timestamp_text[1],
-            "roles": roles_text,
+            "joined": timestamps[1] or "N/A",
+            "roles": roles_text or "N/A",
             # add activity and infractions later
         }
 
         # embed variables
         embed_desc = "**User Information**\n"
         for key, value in user_dict.items():
-            if value == 0:
+            if value == 0 and is_member:
                 embed_desc += "\n**Member Information**\n"
                 continue
             embed_desc += f"{key.title()}: {value}\n"
