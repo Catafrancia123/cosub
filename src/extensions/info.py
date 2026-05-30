@@ -2,10 +2,12 @@ import random, discord, toml
 from math import floor
 from datetime import datetime
 from discord.ext import commands
+from schemas.saveloader import edit, check_data
+import discord.ui as UI
+import discord.app_commands as app_commands
 
 with open("config.toml", "r") as config:
     config_data = toml.load(config)
-    admin_roles = config_data["guild-settings"]["admin_roles"]
 
 class Information(commands.Cog):
     def __init__(self, bot):
@@ -20,8 +22,10 @@ class Information(commands.Cog):
         # check for roles
         if is_member:
             roles_text = ""
-            for user_role in user.roles:
-                roles_text += f"{user_role.name}, "
+            tmp = user.roles[::-1]
+            for user_role in tmp:
+                if user_role.name == "@everyone": continue
+                roles_text += f"<@&{user_role.id}>, "
 
         timestamps = [user.created_at.timestamp()]
         if is_member: timestamps.append(user.joined_at.timestamp())
@@ -32,7 +36,7 @@ class Information(commands.Cog):
 
         user_dict = {
             # user info
-            "username": user.name,
+            "profile": f"<@{user.id}>",
             "created": timestamps[0],
             "id": user.id,
 
@@ -48,6 +52,9 @@ class Information(commands.Cog):
         for key, value in user_dict.items():
             if value == 0 and is_member:
                 embed_desc += "\n**Member Information**\n"
+                continue
+            if key == "id": 
+                embed_desc += f"ID: {value}\n"
                 continue
             embed_desc += f"{key.title()}: {value}\n"
 

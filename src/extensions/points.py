@@ -4,11 +4,9 @@ from sqlite3 import DatabaseError
 pathlib.Path(__file__).parent / "schemas/saveloader.py"
 from schemas.saveloader import check_data, load, add, edit
 
-SAVE = "save.db"
-with open("config.toml", "r") as config:
-    data = toml.load(config)
-    admin_roles = data["guild-settings"]["admin_roles"]
+# PERMISSIONS HANDLED BY INTEGRATIONS TAB!!!
 
+SAVE = "save.db"
 async def check_points(ctx):
     check = await check_data(SAVE, ctx.guild.id, "points", "id", ctx.author.id)
     if not check:
@@ -20,7 +18,6 @@ class Points(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
-    @commands.has_any_role(*admin_roles)
     @commands.check(check_points)
     @commands.hybrid_command(with_app_command = True, brief = "Increases a user's points.")
     async def points_increase(self, ctx, target: discord.User, amount: int):
@@ -34,7 +31,6 @@ class Points(commands.Cog):
         await edit(SAVE, guild_id, "points", "id", target.id, new_amount)
         await ctx.reply(f"Increased {amount} point(s) to: {target.name}.\n{target.name} now has {new_amount} point(s)")
 
-    @commands.has_any_role(*admin_roles)
     @commands.check(check_points)
     @commands.hybrid_command(with_app_command = True, brief = "Decreases a user's points.")
     async def points_decrease(self, ctx, target: discord.User, amount: int):
@@ -48,7 +44,6 @@ class Points(commands.Cog):
         await edit(SAVE, guild_id, "points", "id", target.id, new_amount)
         await ctx.reply(f"Decreased {amount} point(s) to: {target.name}.\n{target.name} now has {new_amount} point(s)")
 
-    @commands.has_any_role(*admin_roles)
     @commands.check(check_points)
     @commands.hybrid_command(with_app_command = True, brief = "Sets a user's points to a set amount")
     async def points_set(self, ctx, target: discord.User, amount: int):
@@ -61,7 +56,6 @@ class Points(commands.Cog):
             await edit(SAVE, guild_id, "points", "id", target.id, amount)
         await ctx.reply(f"Set {amount} point(s) to: {target.name}.")
 
-    @commands.has_any_role(*admin_roles)
     @commands.check(check_points)
     @commands.hybrid_command(with_app_command = True, brief = "Returns the mentioned user's points")
     async def points_amount(self, ctx, target: discord.User = commands.Author):

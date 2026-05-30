@@ -8,10 +8,10 @@ from discord.ext import commands
 SAVE = "save.db"
 
 async def check_shifts(ctx):
-    check = await check_data(SAVE, ctx.guild.id, "shift_amount", "id", ctx.author.id)
+    check = await check_data(SAVE, "server_data", "shift_amount", "user_id", ctx.author.id)
     if not check:
-        await add(SAVE, ctx.guild.id, "id", ctx.author.id)
-        await edit(SAVE, ctx.guild.id, "shift_amount", "id", ctx.author.id, 0)
+        await add(SAVE, "server_data", "user_id", ctx.author.id)
+        await edit(SAVE, "server_data", "shift_amount", "user_id", ctx.author.id, 0)
     return True
 
 class Shift(commands.Cog):
@@ -22,15 +22,15 @@ class Shift(commands.Cog):
     @commands.hybrid_command(brief="Manage and view your shifts.", aliases=["shift"])
     async def shift_info(self, ctx):
         user = ctx.author
-        check = await check_data(SAVE, ctx.guild.id, "shift_status", "id", user.id)
+        check = await check_data(SAVE, "server_data", "shift_status", "user_id", user.id)
         if not check:
-            await add(SAVE, ctx.guild.id, "id", user.id)
+            await add(SAVE, "server_data", "user_id", user.id)
 
-        shift_status = await load(SAVE, ctx.guild.id, "shift_status", "id", user.id) == 1
+        shift_status = await load(SAVE, "server_data", "shift_status", "user_id", user.id) == 1
        
         # EMBED DESC VARS
-        shift_amount = await load(SAVE, ctx.guild.id, "shift_amount", "id", user.id)
-        total_time = await load(SAVE, ctx.guild.id, "shift_duration_seconds", "id", user.id)
+        shift_amount = await load(SAVE, "server_data", "shift_amount", "user_id", user.id)
+        total_time = await load(SAVE, "server_data", "shift_duration_seconds", "user_id", user.id)
 
         if shift_amount <= 0:
             avg_time = 0
@@ -60,37 +60,6 @@ class Shift(commands.Cog):
         await ctx.reply(embed=embedvar, view=ui_buttons)
         ButtonInteractions(bot=self.bot, shift_id=ctx.channel.last_message_id) # pass the message id
 
-class ShiftSystem():
-    def __init__(self, interaction):
-        self.start_time = self.total_time = self.time_elapsed = 0
-        self.time_between_breaks = []
-        self.interaction = interaction
-        self.guild = self.interaction.guild
-
-    async def start(self):
-        self.start_time = datetime.datetime.now().timestamp()
-        await edit(SAVE, self.guild.id, "shift_status", "id", self.interaction.user.id, 1) # no true/false in sql, use 1/0
-
-    async def shift_break(self, status: bool): # status is whether you are doing a break/continuing 
-        if status == True:
-             self.time_between_breaks.append(datetime.datetime.now().timestamp() - self.start_time)
-        elif status == False:
-            self.start_time = datetime.datetime.now().timestamp()
-
-    async def end(self) -> int:
-        self.total_time = datetime.datetime.now().timestamp() - self.start_time
-        for time in self.time_between_breaks:
-            self.total_time += time
-        self.time_elapsed = datetime.timedelta(seconds=int(self.total_time)) # final time in readable way
-
-        shift_time = await load(SAVE, self.guild.id, "shift_duration_seconds", "id", self.interaction.user.id)
-        shift_amount = await load(SAVE, self.guild.id, "shift_amount", "id", self.interaction.user.id)
-
-        await edit(SAVE, self.guild.id, "shift_duration_seconds", "id", self.interaction.user.id, shift_time+self.total_time)
-        await edit(SAVE, self.guild.id, "shift_amount", "id", self.interaction.user.id, shift_amount+1)
-        await edit(SAVE, self.guild.id, "shift_status", "id", self.interaction.user.id, 0)
-
-        return self.time_elapsed
 
 
 class ButtonInteractions(UI.View):
@@ -149,6 +118,38 @@ class ButtonInteractions(UI.View):
         await interaction.response.send_message('Total time: {total_time} seconds', ephemeral=True)
         
         self.stop()
+
+class ShiftSystem():
+    def __init__(self, interaction):
+        self.start_time = self.total_time = self.time_elapsed = 0
+        self.time_between_breaks = []
+        self.interaction = interaction
+        self.guild = self.interaction.guild
+
+    async def start(self):
+        self.start_time = datetime.datetime.now().timestamp()
+        await edit(SAVE, "server_data", "shift_status", "user_id", self.interaction.user.id, 1) # no true/false in sql, use 1/0
+
+    async def shift_break(self, status: bool): # status is whether you are doing a break/continuing 
+        if status == True:
+             self.time_between_breaks.append(datetime.datetime.now().timestamp() - self.start_time)
+        elif status == False:
+            self.start_time = datetime.datetime.now().timestamp()
+
+    async def end(self) -> int:
+        self.total_time = datetime.datetime.now().timestamp() - self.start_time
+        for time in self.time_between_breaks:
+            self.total_time += time
+        self.time_elapsed = datetime.timedelta(seconds=int(self.total_time)) # final time in readable way
+
+        shift_time = await load(SAVE, "server_data", "shift_duration_seconds", "user_id", self.interaction.user.id)
+        shift_amount = await load(SAVE, "server_data", "shift_amount", "user_id", self.interaction.user.id)
+
+        await edit(SAVE, "server_data", "shift_duration_seconds", "user_id", self.interaction.user.id, shift_time+self.total_time)
+        await edit(SAVE, "server_data", "shift_amount", "user_id", self.interaction.user.id, shift_amount+1)
+        await edit(SAVE, "server_data", "shift_status", "user_id", self.interaction.user.id, 0)
+
+        return self.time_elapsed
 
 async def setup(bot):
     await bot.add_cog(Shift(bot=bot))

@@ -13,24 +13,32 @@ NN (Not Null) - The data must not be empty.
 PK (Primary key) - Self-Explanatory.
 """
 
-async def check_table(path: str, table: str):
+async def check_table(path: str):
     async with asqlite.connect(path) as conn, conn.cursor() as db:
         # Make table for server
-        await db.execute(f"""CREATE TABLE IF NOT EXISTS '{table}' (
-        "id"	                    INTEGER NOT NULL,
-        "points"	                INTEGER NOT NULL DEFAULT 0,
-        "shift_amount"	            INTEGER NOT NULL DEFAULT 0,
-        "shift_duration_seconds"	INTEGER NOT NULL DEFAULT 0,
-        "shift_status"              INTEGER NOT NULL DEFAULT 0,
-        PRIMARY KEY("id") ON CONFLICT FAIL
+        await db.execute(f"""CREATE TABLE IF NOT EXISTS "server_data" (
+        "user_id"	                INTEGER ,
+        "server_id"	                INTEGER ,
+        "points"	                INTEGER DEFAULT 0,
+        "shift_amount"	            INTEGER DEFAULT 0,
+        "shift_duration_seconds"	INTEGER DEFAULT 0,
+        "shift_status"              INTEGER DEFAULT 0,
+        PRIMARY KEY("user_id") ON CONFLICT FAIL
         );""")
 
         # make table for server info
-        await db.execute("""CREATE TABLE IF NOT EXISTS 'server_info' (
-        "id"                        INTEGER NOT NULL UNIQUE,
-        "startup_message_id"        INTEGER,
-        "last_startup_message_id",  INTEGER,
-        PRIMARY KEY("id") ON CONFLICT FAIL
+        await db.execute("""CREATE TABLE IF NOT EXISTS "server_info" (
+        "server_id"	            INTEGER NOT NULL UNIQUE,
+        "server_name"           TEXT,
+        "startup_message_id"	INTEGER,
+        "member_role"	        INTEGER,
+        "log_channel"	        INTEGER,
+        "deployment_log_channel" INTEGER,
+        "training_log_channel"	INTEGER,
+	    "tryout_log_channel"	INTEGER,
+        "is_faction"	        INTEGER,
+        "reaction_emoji"        INTEGER,
+        PRIMARY KEY("server_id") ON CONFLICT FAIL
         );""")
 
 async def edit(path: str, table: str, value_column: str, ref_column: str, ref_value, value):
@@ -47,7 +55,7 @@ async def edit(path: str, table: str, value_column: str, ref_column: str, ref_va
     """
 
     async with asqlite.connect(path) as conn, conn.cursor() as db:
-        code = f"UPDATE '{table}' SET {value_column} = ? WHERE {ref_column} = ?"
+        code = f"UPDATE {table} SET {value_column} = ? WHERE {ref_column} = ?"
         "UPDATE server_info SET prefix = bt WHERE name = bot-test"
         try:
             await db.execute(code, (value,ref_value))
@@ -66,7 +74,7 @@ async def add(path: str, table: str, value_column: str, value):
     """
 
     async with asqlite.connect(path) as conn, conn.cursor() as db:
-        code = f"INSERT OR REPLACE INTO '{table}' ({value_column}) VALUES(?)"
+        code = f"INSERT OR REPLACE INTO {table} ({value_column}) VALUES(?)"
         "INSERT OR REPLACE INTO 'server_info' ('name') VALUES('bot test')"
         try:
             await db.execute(code, (value,)) 
@@ -91,22 +99,20 @@ async def check_data(path: str, table: str, value_column: str, ref_column: str, 
     async with asqlite.connect(path) as conn, conn.cursor() as db:
         code = f"""	
         SELECT EXISTS (
-            SELECT {value_column} FROM '{table}' 
-            WHERE {ref_column} = ?
-            -- keep the func below for later
-            --HAVING ? NOT NULL
+            SELECT {value_column} FROM {table}
+            WHERE {ref_column} = ? AND {value_column} NOT NULL
             LIMIT 1
         );"""
         await db.execute(code, (ref_value,))
         data = await db.fetchone()
         
-        match data[0]:
-            case 1: check = await load(path, table, value_column, ref_column, ref_value)
-            case 0: return False
- 
-        match check:
-            case 0 | None: return False
-            case _: return True
+    match data[0]:
+        case 1: check = await load(path, table, value_column, ref_column, ref_value)
+        case 0: return False
+
+    match check:
+        case 0 | None: return False
+        case _: return True
 
 async def load(path: str, table: str, value_column: str, ref_column: str, ref_value: any) -> any:
     """
@@ -125,15 +131,40 @@ async def load(path: str, table: str, value_column: str, ref_column: str, ref_va
 
     async with asqlite.connect(path) as conn, conn.cursor() as db:
         code = f"""
-            SELECT {value_column} FROM '{table}' WHERE {ref_column} = ? LIMIT 1
+            SELECT {value_column} FROM {table}
+            WHERE {ref_column} = ? 
+            LIMIT 1
         """
         await db.execute(code, (ref_value,))
         data = await db.fetchone()
         
-        if data == None:
-            data = [0]
+    match data[0]:
+        case 0 | None: data = [0]
+        case _: pass
 
     return data[0]
+
+async def load_column(path: str, table: str, column: str) -> list:
+    """
+    Gets data from a database file.
     
+    Args:
+        path (str): The path of the database file.
+        table (str): The table that the data is in.    
+        column (str): The data's column
+    
+    Returns: 
+        list: The column data in a list, must iterate it: data[i][0] where `i` is the iterator
+    """
+
+    async with asqlite.connect(path) as conn, conn.cursor() as db:
+        code = f"""
+            SELECT {column} FROM {table};
+        """
+        await db.execute(code)
+        data = await db.fetchall()
+
+    return data
+
 if __name__ == "__main__":
     print(asyncio.run(check_data("./save.db", "server_info", "last_startup_message_id", "id", 910687741380005978)))
