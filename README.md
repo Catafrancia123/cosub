@@ -47,6 +47,31 @@ loaded_modules = ["maintenance", "humor", "settings"]
 send_startup_message = true
 ```
 
+## Server Setup
+In order to run the bot normally, you must fill out a form of server information. The form can be accessed by running the command `/setup`. In which it should show like this:
+
+<img width="583" height="147" alt="image" src="https://github.com/user-attachments/assets/e589bfa2-799a-4217-a6cb-6b14e8030251" />
+
+To get the emoji id: [here](https://support.discord.com/hc/en-us/community/posts/360069335891-Get-Emoji-ID)
+To enable the special faction-based commands, tick the "Is a faction?" checkbox and proceed by pressing another button:
+
+<img width="409" height="140" alt="image" src="https://github.com/user-attachments/assets/f6e9994d-1e9e-4d05-bd87-48dc8a3cf7ba" />
+
+## Integrations
+The responsibility of the usage of commands is relied on the server itself. So, once you have done `/setup`, follow these steps to enable integrations:
+### Step 1: Go to Server Settings
+<img width="960" height="540" alt="setup_1" src="https://github.com/user-attachments/assets/4b160718-52e0-4b23-b0d7-10bfd432c780" />
+
+### Step 2: Go to the Integrations Tab
+<img width="960" height="540" alt="setup_2" src="https://github.com/user-attachments/assets/047119ba-235f-48dd-9a91-a49cd10267ee" />
+
+### Step 3: Go find the bot (mine is COSUB here)
+<img width="960" height="540" alt="setup_3" src="https://github.com/user-attachments/assets/de220f8f-4959-4c25-8e4b-3639999896e1" />
+
+### Step 4: Edit the usage of commands to be only used by a certain role, user or channel. 
+The top part means the entire bot can only be used in a certain channel or user or role, while the bottom part with commands is used for certain commands to be used in a certain channel or user or role.
+<img width="960" height="540" alt="setup_4" src="https://github.com/user-attachments/assets/f7a01327-b2a7-4a5c-a15d-de63a1c42191" />
+
 ## Running it
 Run the `main.py` file and wait for the setup process to complete. Once you hear a *beep* sound, it's ready to use.
 You can monitor the bot via the command line for errors and events.
