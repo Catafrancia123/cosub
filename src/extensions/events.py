@@ -8,11 +8,14 @@ import discord.app_commands as app_commands
 
 with open("config.toml", "r") as config:
     config_data = toml.load(config)
+    in_testing = config_data["bot_settings"]["in_testing"]
 SAVE = "save.db"
     
-def is_faction_check(inter: discord.Interaction):
-    is_faction = config_data["guild-settings"][f"{inter.guild.id}"]["faction"]
-    return is_faction
+async def is_faction_check(inter: discord.Interaction):
+    check = await load(SAVE, "server_info", "is_faction", "server_id", inter.guild.id)
+    match check:
+        case 1: return True
+        case 0 | None: return False
 
 class Events(commands.Cog):
     def __init__(self, bot):
@@ -25,31 +28,29 @@ class Events(commands.Cog):
 
 class EventReactionButtons(UI.View):
     def __init__(self, *args, **kwargs):
+        super().__init__(timeout=None)
         self.bot = kwargs["bot"]
         self.data = kwargs["data"]
-        super().__init__(timeout=kwargs["timeout_duration"])
-    
-    @UI.button(label="Attend the event", style=discord.ButtonStyle.green) # start
-    async def attendance(self, inter: discord.Interaction, button: UI.Button):
-        message = await inter.channel.fetch_message(inter.channel.last_message_id)
-        system = ShiftSystem()
-        time = round(datetime.now().timestamp())
-       
-        self.bot.logger.info(f"BOT LOG: reactions = {message.reactions}")
-        attendees = message.reactions[0].count-1
-        if attendees <= 2: await inter.response.send_message("Nobody has reacted to this event yet, atleast 2 people including the host are required to react to start the event.", ephemeral=True)
-        
-        self.data["attendees"] = message.reactions[0].count-1
-        self.data["status"] = True
-        ui_buttons = EventEndButtons(
-            bot=self.bot,
-            data=self.data,
-            timeout_duration=14400,
-            shift_system=system,
-        )
+
+    @UI.select(placeholder="Select attendance options:", row=1, options=[discord.SelectOption(label="Attend", value=1), discord.SelectOption(label="Un-attend", value=0)])
+    async def selection(self, inter: discord.Interaction, select: UI.Select):
+        value = int(select.values[0])
+        if value == 1:
+            self.data["attendees"].append(inter.user.id)           
+            await inter.response.send_message("You have been logged to willingly attend the event, please do not forget and remember:\n`You react, you attend.`\nIf you can't attend for any reason in the future, before the event happens, press the button again, and select `Un-attend`.", ephemeral=True)
+        elif value == 0:
+            self.data["attendees"].remove(inter.user.id)
+            await inter.response.send_message("You have un-attended from the event, you are now free from the obligation to join it.", ephemeral=True)
+
+        attendees = ""
+        if self.data["attendees"]:
+            for user_id in self.data["attendees"]:
+                attendees += f"<@{user_id}>, "
+        else:
+            attendees = "N/A"
         embedvar = discord.Embed(
-            description=f"## {self.data['event_type']} Started\nStarted at: <t:{time}:f>\nLocation: {self.data['location']}\n\n{self.data['notes']}",
-            color=discord.Color.green(),
+            description=f"## {self.data['event_type']}\nTime: <t:{self.data['time']}:f>, <t:{self.data['time']}:R>\nLocation: {self.data['location']}\nAttendees: {attendees}\n\n{self.data['notes']}",
+            color=discord.Color.blue(),
             timestamp=datetime.now(),
         )
         embedvar.set_footer(text=f"ID: {self.bot.interaction_id}")
@@ -59,17 +60,15 @@ class EventReactionButtons(UI.View):
         except AttributeError:
             icon = self.bot.user.avatar.url
         embedvar.set_thumbnail(url=icon)
-
-        system.start()
-        await inter.response.send_message("Event started.", ephemeral=True)
+        ui_buttons = EventReactionButtons(bot=self.bot,data=self.data)
         await inter.message.edit(embed=embedvar, view=ui_buttons)
         await self.wait()
 
 class EventManagementButtons(UI.View):
     def __init__(self, *args, **kwargs):
+        super().__init__(timeout=None)
         self.bot = kwargs["bot"]
         self.data = kwargs["data"]
-        super().__init__(timeout=kwargs["timeout_duration"])
     
     @UI.button(label=f"Start Event", style=discord.ButtonStyle.green) # start
     async def event_status(self, inter: discord.Interaction, button: UI.Button):
@@ -78,10 +77,11 @@ class EventManagementButtons(UI.View):
         time = round(datetime.now().timestamp())
        
         self.bot.logger.info(f"BOT LOG: reactions = {message.reactions}")
-        attendees = message.reactions[0].count-1
-        if attendees <= 2: await inter.response.send_message("Nobody has reacted to this event yet, atleast 2 people including the host are required to react to start the event.", ephemeral=True)
-        
-        self.data["attendees"] = message.reactions[0].count-1
+        attendees = len(self.data["attendees"])
+        if attendees <= 2 and not in_testing: 
+            await inter.response.send_message("The event hasn't reached its minimal reaction count.\nAtleast 2 people including the host are required to react to start the event.", ephemeral=True)
+            return 
+
         self.data["status"] = True
         ui_buttons = EventEndButtons(
             bot=self.bot,
@@ -89,8 +89,19 @@ class EventManagementButtons(UI.View):
             timeout_duration=14400,
             shift_system=system,
         )
+        
+        attendees = ""
+        if self.data["attendees"]:
+            for i, user_id in enumerate(self.data["attendees"]):
+                if i == len(self.data["attendees"]):
+                    attendees += f"<@{user_id}>"
+                else:
+                    attendees += f"<@{user_id}>, "
+                self.bot.logger.info(f"BOT LOG: {i} {len(self.data['attendees'])}")
+        else:
+            attendees = "N/A"
         embedvar = discord.Embed(
-            description=f"## {self.data['event_type']} Started\nStarted at: <t:{time}:f>\nLocation: {self.data['location']}\n\n{self.data['notes']}",
+            description=f"## {self.data['event_type']} Started\nStarted at: <t:{time}:f>\nLocation: {self.data['location']}\nAttendees: {attendees}\n\n{self.data['notes']}",
             color=discord.Color.green(),
             timestamp=datetime.now(),
         )
@@ -104,7 +115,7 @@ class EventManagementButtons(UI.View):
 
         system.start()
         await inter.response.send_message("Event started.", ephemeral=True)
-        await inter.message.edit(embed=embedvar, view=ui_buttons)
+        await message.edit(embed=embedvar, view=ui_buttons)
         await self.wait()
 
     @UI.button(label=f"Cancel Event", style=discord.ButtonStyle.red)
@@ -136,17 +147,26 @@ class EventManagementButtons(UI.View):
 
 class EventEndButtons(UI.View):
     def __init__(self, *args, **kwargs):
+        super().__init__(timeout=None)
         self.bot = kwargs["bot"]
         self.data = kwargs["data"]
         self.system = kwargs["shift_system"]
-        super().__init__(timeout=kwargs["timeout_duration"])
         self.duration = 0
 
     @UI.button(label=f"End Event", style=discord.ButtonStyle.red) # end
     async def event_status(self, inter: discord.Interaction, button: UI.Button):
         time = round(datetime.now().timestamp())
+        
+        attendees = ""
+        if self.data["attendees"]:
+            for i, user_id in enumerate(self.data["attendees"]):
+                if i == len(self.data["attendees"]):
+                    attendees += f"<@{user_id}>"
+                else:
+                    attendees += f"<@{user_id}>, "
+                self.bot.logger.info(f"BOT LOG: {i} {len(self.data['attendees'])}")
         embedvar = discord.Embed(
-            description=f"## {self.data['event_type']} Ended\nEnded at: <t:{time}:f>\nLocation: {self.data['location']}\n\nThis {self.data['event_type']} has ended.",
+            description=f"## {self.data['event_type']} Ended\nEnded at: <t:{time}:f>\nLocation: {self.data['location']}\nAttendees: {attendees}\n\nThis {self.data['event_type']} has ended.",
             color=discord.Color.red(),
             timestamp=datetime.now(),
         )
@@ -158,7 +178,7 @@ class EventEndButtons(UI.View):
             icon = self.bot.user.avatar.url
         embedvar.set_thumbnail(url=icon)
 
-        self.duration = self.system.end()
+        self.data["duration"] = self.system.end()
         await inter.response.send_message("Event Ended.", ephemeral=True)
         await inter.message.edit(embed=embedvar)
         self.data["status"] = False
@@ -169,28 +189,36 @@ class EventEndButtons(UI.View):
         if self.data["status"]: await inter.response.send_message("Event is still ongoing, please press the `End Event` button first to end the event and then press this button again.", ephemeral=True)
         await inter.response.send_modal(EventLogForm(bot=self.bot, data=self.data)) 
 
-class EventLogForm(UI.Modal, title="Edit Event"):
+class EventLogForm(UI.Modal, title="Event Log Form"):
     def __init__(self, *args, **kwargs):
         super().__init__()
         self.bot = kwargs["bot"]
         self.data = kwargs["data"]
-        self.attendees = UI.Label(text=f"Attendees ({self.data['attendees']} people)", component=UI.UserSelect(placeholder="N/A", max_values=self.data["attendees"], row=4, required=True)) # channel (optional)
-        self.proof = UI.Label(text="Proof of event (image of wedge)", component=UI.FileUpload(required=True))
+        self.proof = UI.Label(text="Proof of event (in image form)", component=UI.FileUpload(required=True))
         self.notes = UI.Label(text="Event Remarks/Notes", component=UI.TextInput(style=discord.TextStyle.paragraph, placeholder=f"The {self.data['event_type']} went smoothly.", required=False)) # notes
 
-        self.all = [self.attendees, self.proof, self.notes]
+        self.all = [self.notes, self.proof]
         for i in self.all: self.add_item(i)
 
     async def on_submit(self, inter: discord.Interaction):
-        event_log_channel_id = config_data["guild-settings"][f"{inter.guild.id}"]["event_log_channel"]
+        event_log_channel_id = await load(SAVE, "server_info", f"{self.data['event_type'].lower()}_log_channel", "server_id", inter.guild.id)
         event_log_channel = await self.bot.fetch_channel(event_log_channel_id)
-        message = await inter.channel.fetch_message(inter.message.id)
 
         # Count stuff
-        attendees = self.attendees.component.values
+        attendees = ""
+        if self.data["attendees"]:
+            for i, user_id in enumerate(self.data["attendees"]):
+                if i == len(self.data["attendees"]):
+                    attendees += f"<@{user_id}>"
+                else:
+                    attendees += f"<@{user_id}>, "
+                self.bot.logger.info(f"BOT LOG: {i} {len(self.data['attendees'])}")
+        else:
+            attendees = "N/A"
+
         remarks = self.notes.component.value
         embedvar = discord.Embed(
-            description=f"## {self.data['event_type']} Log\nDuration: {self.duration}\nLocation: {self.data['location']}\nAttendees: {attendees}\n\nNotes:\n{remarks}",
+            description=f"## {self.data['event_type']} Log\nDuration: {self.data['duration']}\nLocation: {self.data['location']}\nAttendees: {attendees}\n\nNotes:\n{remarks}",
             color=discord.Color.blue(),
             timestamp=datetime.now(),
         )
@@ -201,9 +229,16 @@ class EventLogForm(UI.Modal, title="Edit Event"):
         except AttributeError:
             icon = self.bot.user.avatar.url
         embedvar.set_thumbnail(url=icon)
-
-        await event_log_channel.send(embed=embedvar, file=self.proof.component.value)
-        await inter.response.send_message(f"Sent event log to: {event_log_channel.name}", ephemeral=True)
+    
+        files = self.proof.component.values
+        for i, att in enumerate(files):
+            files[i] = await att.to_file()
+        message = await event_log_channel.send(embed=embedvar)
+        message_id = message.id
+        await event_log_channel.send("Proof:", files=files)
+        
+        log_text = f"https://discord.com/channels/{inter.guild.id}/{event_log_channel.id}/{message_id}"
+        await inter.response.send_message(f"Sent event log to: {log_text}", ephemeral=True)
 
 class EditEventForm(UI.Modal, title="Edit Event"):
     def __init__(self, *args, **kwargs):
@@ -246,8 +281,8 @@ class MakeEventForm(UI.Modal, title="Create Event"):
         self.event_selections = ["Deployment", "Training", "Tryout"]
         self.base_datetime = round(datetime.now().timestamp())
 
-        self.event_type = UI.Label(text="Event Type", component=UI.Select(options=[discord.SelectOption(label=i, value=i) for i in self.event_selections], placeholder="Deployment", row=1, required=True)) # event type
-        self.time = UI.Label(text="Time (in unix time, eg. 1778760000)", component=UI.TextInput(placeholder="Enter the time here in unix format!")) # time (advancd)
+        self.event_type = UI.Label(text="Event Type", component=UI.Select(options=[discord.SelectOption(label=i, value=i) for i in self.event_selections], placeholder="Select event type:", row=1, required=True)) # event type
+        self.time = UI.Label(text="Time (in unix time, eg. 1778760000)", component=UI.TextInput(placeholder="Enter the time here in unix format!")) # time (advanced)
         self.location = UI.Label(text="Location of the Event", component=UI.TextInput(placeholder="Site-45")) # location
         self.notes = UI.Label(text="Event Notes/Instructions", component=UI.TextInput(style=discord.TextStyle.paragraph, placeholder="Join up and say !WPCO in radio!")) # notes
 
@@ -261,20 +296,18 @@ class MakeEventForm(UI.Modal, title="Create Event"):
             "location": self.location.component.value,
             "notes": self.notes.component.value,
             "co_host": ["N/A"],
+            "attendees": [],
         }
        
-        member_role = config_data["guild-settings"][f"{inter.guild.id}"]["member_role"]
+        member_role = await load(SAVE, "server_info", "member_role", "server_id", inter.guild.id)
         if member_role == 0: 
             member_role = "@here"
         else: 
             member_role = f"<@&{member_role}>"
-        ui_buttons = EventManagementButtons(
-                bot=self.bot,
-                data=data,
-                timeout_duration=14400, # 3 hours
-        )
+        reaction_buttons = EventReactionButtons(bot=self.bot,data=data)
+        management_buttons = EventManagementButtons(bot=self.bot, data=data)
         embedvar = discord.Embed(
-            description=f"## {data['event_type']}\nTime: <t:{data['time']}:f>, <t:{data['time']}:R>\nLocation: {data['location']}\n\n{data['notes']}",
+            description=f"## {data['event_type']}\nTime: <t:{data['time']}:f>, <t:{data['time']}:R>\nLocation: {data['location']}\nAttendees: N/A\n\n{data['notes']}",
             color=discord.Color.blue(),
             timestamp=datetime.now(),
         )
@@ -285,8 +318,8 @@ class MakeEventForm(UI.Modal, title="Create Event"):
         except AttributeError:
             icon = self.bot.user.avatar.url
         embedvar.set_thumbnail(url=icon)
-        await inter.response.send_message(f"Sent event message. Adjust your deployment settings below.", ephemeral=True) # after this use followup!
-        await inter.followup.send(f"{member_role}", embed=embedvar, view=ui_buttons)
+        await inter.response.send_message(f"Sent event message. Adjust your deployment settings below.", ephemeral=True, view=management_buttons) # after this use followup!
+        await inter.followup.send(f"{member_role}", embed=embedvar, view=reaction_buttons)
 
 class ShiftSystem():
     def __init__(self):

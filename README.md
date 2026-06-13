@@ -1,4 +1,4 @@
-![Version](https://img.shields.io/badge/version-0.2.2--dev2-blue?style=plastic)
+![Version](https://img.shields.io/badge/version-0.2.2--dev3-blue?style=plastic)
 ![Python Versions](https://img.shields.io/badge/python-3.12%20%7C%203.13%20%7C%203.14%20-blue?style=plastic)
 [![Discord](https://img.shields.io/discord/990326151987724378?logo=discord&logoColor=white&color=5865F2)](https://discord.gg/BHUxXKwTfA) 
 
@@ -34,17 +34,30 @@ Before running the bot, you need a `config.toml` file as the config for the bot 
 > [!NOTE]
 > Please copy the whole file entirely without deleting/ignoring a single thing.
 ```toml
-title = "Config file"
+title = "COSUB config file"
+version = "0.2.2-dev3"
 
-[bot-settings]
+[bot_settings]
 # local_username is your local alias for the bot, defaults to admin.
-local_username = "admin"
+local_username = "catamapp"
+
 # self explanatory
 bot_token = "insert_discord_bot_token"
-# loaded_modules is a development config if you want to specify the modules loaded. (FOR ALL SERVERS)
-loaded_modules = ["maintenance", "humor", "settings"]
+
+# loaded_modules is a development config if you want to specify the modules loaded. Defaults to all modules if you ignore this parameter. (FOR ALL SERVERS) 
+loaded_modules = ["maintenance", "humor", "points", "shifts", "info", "settings"]
+
+# trusted_bot_admins are trusted bot admins's user id that are allowed to run the `!shutdown` command, with more to come. (FOR ALL SERVERS)
+trusted_bot_admins = [751049879630905345, 1118880023542243449, 898188801954955275, 652822194539331594, 840946058254352384]
+
 # send_startup_message is a bot config whether or not to send a bot status messaage to the respective server's log channels. (FOR ALL SERVERS)
 send_startup_message = true
+
+# in_testing allows the bot to bypass certain requirements that are put when not in testing. This effects the `events` extension.
+in_testing = true
+
+# play_startup_beep is a setting to play the beep sound after completing the startup of the bot. If you have no speakers installed, disable this or it will stall out the entire program.
+play_startup_beep = true
 ```
 
 ## Server Setup
@@ -52,7 +65,8 @@ In order to run the bot normally, you must fill out a form of server information
 
 <img width="583" height="147" alt="image" src="https://github.com/user-attachments/assets/e589bfa2-799a-4217-a6cb-6b14e8030251" />
 
-To get the emoji id: [here](https://support.discord.com/hc/en-us/community/posts/360069335891-Get-Emoji-ID)
+How do you get your custom emoji id? [click here](https://support.discord.com/hc/en-us/community/posts/360069335891-Get-Emoji-ID) If you blank the form for the emoji id, then it will use the standard green checkmark.
+
 To enable the special faction-based commands, tick the "Is a faction?" checkbox and proceed by pressing another button:
 
 <img width="409" height="140" alt="image" src="https://github.com/user-attachments/assets/f6e9994d-1e9e-4d05-bd87-48dc8a3cf7ba" />

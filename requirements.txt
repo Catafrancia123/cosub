@@ -4,4 +4,4 @@ playsound3>=3.2.4       # idk
 jishaku>=2.6.0          # idk also
 asqlite==2.0.0          # no updates yet, but i dont like db getting changed
 toml==0.10.2            # same as above
-#python_version>=3.12    # https://peps.python.org/pep-0701/ f string rework
+#python_version>=3.12   # https://peps.python.org/pep-0701/ f string rework

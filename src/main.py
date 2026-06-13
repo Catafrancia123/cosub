@@ -1,10 +1,10 @@
-BOTVER = "0.2.2-dev2"
-""" Version 0.2.2-dev2:
-    - Better error handling and instructions to fix
-    - Brand New Settings system
-    - Reworked the entirety of config.toml, changed guild config to DB.
-    - Permissions is now handled by the server via the integrations tab, adjust accordingly ASAP.
-    - New setup command to help setting up the server
+BOTVER = "0.2.2-dev3"
+""" Version 0.2.2-dev3: 
+    - New version check to confirm python and config file versions.
+    - Event system fully finished.
+    - You can now check any user's information via user id.
+
+    DON'T FORGET TO DO `/SETUP` FIRST!
 """
 
 #! use better comments on vscode.
@@ -12,7 +12,7 @@ BOTVER = "0.2.2-dev2"
 import discord, os, sys, asyncio, playsound3, logging, logging.handlers, asqlite, toml, pathlib
 from datetime import datetime
 from schemas.saveloader import check_table, add, edit, load, load_column
-from schemas.functions import Functions
+from schemas.functions import Functions, VersionError, ChecksumMismatchError
 from aiohttp.client_exceptions import ClientConnectorDNSError
 from extensions import EXT_LIST
 from discord.ext import commands
@@ -24,14 +24,22 @@ def clear():
     elif sys.platform.startswith(('linux', 'cygwin', 'darwin', 'freebsd')):
         os.system('clear')
 
+    
+if "src" not in str(pathlib.Path("./").cwd()):
+    raise FileNotFoundError("Please run this file from the src directory and not from anywhere else.\nThis is to prevent import errors.")
+
+checksum = os.system("curl https://raw.githubusercontent.com/Catafrancia123/cosub/releases/latest/download/checksum.txt")
 #* get config data
 SAVE = "save.db"
-try:
-    with open("config.toml", "r") as file:
-        config_data = toml.load(file)
-except Exception:
-    if "src" not in str(pathlib.Path("./").cwd()):
-        raise Exception("Please run this file from the src directory and not from anywhere else.\nThis is to prevent import errors.")
+with open("config.toml", "r") as file:
+    config_data = toml.load(file)
+
+    if config_data["version"] != BOTVER:
+        raise VersionError(BOTVER, config_data["version"])
+    #elif config_data["checksum"] != checksum:
+    #    raise ChecksumMismatchError(checksum, config_data["checksum"]) 
+
+    in_testing = config_data["bot_settings"]["in_testing"]
 
 class Bot(commands.Bot):
     def __init__(self, *args, **kwargs):
@@ -60,16 +68,19 @@ class Bot(commands.Bot):
         startup_embed.set_footer(text=f"ID: {self.interaction_id}")
         
         try:
-            username = config_data['bot-settings']['local_username']
+            username = config_data['bot_settings']['local_username']
         except Exception:
             username = "admin"
         startup_embed.set_author(name=f"Bot startup by: {username}")
 
         #* 2.2 Check Database
-        is_activated = config_data["bot-settings"]["send_startup_message"]
+        is_activated = config_data["bot_settings"]["send_startup_message"]
         if not is_activated:
-            self.logger.info("Bot config: startup messsage feature deactivated")
-            rprint(f'[grey]{time_format}[/grey] [[bright_yellow]WARNING[/bright_yellow]] Startup message feature deactivated.\n[cyan1]INSTRUCTIONS:[/cyan1] Set [code]send_startup_message = true[/code] in [code]config.toml[/code].')
+            self.logger.info("Bot config: startup messsage feature deactivated (due to config)")
+            rprint(f'[grey]{time_format}[/grey] [[bright_yellow]WARNING[/bright_yellow]] Startup message feature deactivated, due to configuration.\n[cyan1]INSTRUCTIONS:[/cyan1] Set [code]send_startup_message = true[/code] in [code]config.toml[/code].')
+        elif in_testing:
+            self.logger.info("Bot config: startup messsage feature deactivated (due to testing)")
+            rprint(f'[grey]{time_format}[/grey] [[bright_yellow]WARNING[/bright_yellow]] Startup message feature deactivated, due to being in testing mode.\n[cyan1]INSTRUCTIONS:[/cyan1] Set [code]in_testing = false[/code] in [code]config.toml[/code].')
 
         await check_table(SAVE)
         for server in self.guilds:
@@ -80,7 +91,7 @@ class Bot(commands.Bot):
                 await add(SAVE, "server_info", "server_id", server.id)
                 await edit(SAVE, "server_info", "server_name", "server_id", server.id, server.name)
             #* startup message id thing
-            if is_activated:
+            if is_activated and not in_testing:
                 try:
                     channel_id = await load(SAVE, "server_info", "log_channel", "server_id", server.id)
                     if channel_id == 0: continue
@@ -92,7 +103,14 @@ class Bot(commands.Bot):
                 log_channel = await self.fetch_channel(channel_id)
                 if message_id != 0:
                     log_message = await log_channel.fetch_message(message_id)
-                    await log_message.edit(embed=startup_embed)
+                    try:
+                        await log_message.edit(embed=startup_embed)
+                    except Exception as e:
+                        rprint(f'[grey]{time_format}[/grey] [[bright_yellow]WARNING[/bright_yellow]] Unable to edit message for: {server.name}')
+                        self.logger.exception(e)
+
+                        await log_channel.send(embed=startup_embed)
+                        await edit(SAVE, "server_info", "startup_message_id", "server_id", server.id, log_channel.last_message_id)
                 else:
                     await log_channel.send(embed=startup_embed)
                     await edit(SAVE, "server_info", "startup_message_id", "server_id", server.id, log_channel.last_message_id)
@@ -113,7 +131,7 @@ class Bot(commands.Bot):
 
     async def setup_hook(self):
         time_format = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-        rprint(f"[grey]{time_format}[/grey] [[light_green]VERSION[/light_green]] Discord.py version [bright_yellow]{discord.__version__}[/bright_yellow], Bot version [bright_yellow]{self.__version__}[/bright_yellow]")
+        rprint(f"[grey]{time_format}[/grey] [[bright_yellow]VERSION[/bright_yellow]] Discord.py version [bright_yellow]{discord.__version__}[/bright_yellow], Bot version [bright_yellow]{self.__version__}[/bright_yellow]")
         for ext in self.ext:
             try:   
                 await self.load_extension(ext.name)
@@ -130,10 +148,13 @@ class Bot(commands.Bot):
         asyncio.create_task(self.startup_setup())
         self.logger.info("Bot setup: 5/6, startup complete.")
         rprint(f'[grey]{time_format}[/grey] [[light_green]COMPLETE[/light_green]] Bot has completed startup and now can be used.')
-        try:
-            await asyncio.run(playsound3.playsound("sounds/beep.wav"))
-        except Exception:
-            pass
+       
+        startup_beep = config_data["bot_settings"]["play_startup_beep"]
+        if startup_beep:
+            playsound3.playsound("sounds/beep.wav")
+        else:
+            self.logger.info("Bot config: no startup beep :(")
+            rprint(f"[grey]{time_format}[/grey] [[bright_yellow]WARNING[/bright_yellow]] Startup beep deactivated.\n[cyan1]INSTRUCTIONS:[/cyan1] Set [code]play_startup_beep = true[/code] in [code]config.toml[/code]. If you don't have a speaker, ignore this.")
  
     def on_command_completion(self, *args):
         self.logger.info(f"Command ran successfully with ID: {self.interaction_id}.")
@@ -206,7 +227,7 @@ async def main():
 
     #* 2. Add stuff to bot
     try:
-        loaded_modules = config_data["bot-settings"]["loaded_modules"]
+        loaded_modules = config_data["bot_settings"]["loaded_modules"]
         loaded_ext = unloaded_ext = []
         for ext in EXT_LIST:
             if ext.name.replace("extensions.", "") in loaded_modules:
@@ -216,6 +237,11 @@ async def main():
 
     except Exception:
         rprint(f"[[bright_yellow]WARNING[/bright_yellow]] All extensions will be loaded.\n[cyan1]INSTRUCTIONS:[/cyan1] To load certain modules, insert the name of the required modules inside [code]config.toml[/code] under [code]loaded_modules[/code]")
+        loaded_modules = config_data["bot_settings"]["loaded_modules"]
+        loaded_ext = []
+        for ext in EXT_LIST:
+            if ext.name.replace("extensions.", "") in loaded_modules:
+                loaded_ext.append(ext)
 
     intents = discord.Intents.default()
     intents.members = True #! can see members
@@ -233,7 +259,7 @@ async def main():
         logger.info("Bot setup: 2/6, bot class created")
         
         #* 2.1 Load token
-        token = config_data["bot-settings"]["bot_token"]
+        token = config_data["bot_settings"]["bot_token"]
         logger.info("Bot setup: 3/6, starting up on discord")
         try:
             await bot.start(token, reconnect=True)

@@ -14,24 +14,34 @@ class Information(commands.Cog):
         self.bot = bot
 
     @commands.hybrid_command(with_app_command = True, brief = "Gets a user's information", aliases=["user", "u", "member", "member_info"])
-    async def user_info(self, ctx, target: discord.Member = commands.Author, target_id: int = 0): 
-        if target: user = target
-        elif target_id: user = await ctx.guild.fetch_member(target_id) 
-        is_member = type(user) == discord.Member
+    async def user_info(self, ctx, target = commands.Author):
+        is_member = True
+        if isinstance(target, int): 
+            try:
+                user = await ctx.guild.fetch_member(target_id)
+            except Exception:
+                user = await self.bot.fetch_user(target_id)
+                is_member = False
+        else: 
+            user = target
 
         # check for roles
-        if is_member:
-            roles_text = ""
-            tmp = user.roles[::-1]
-            for user_role in tmp:
+        roles = getattr(user, "roles", None)
+        roles_text = ""
+        if roles:
+            for user_role in roles[::-1]:
                 if user_role.name == "@everyone": continue
                 roles_text += f"<@&{user_role.id}>, "
+        else: roles_text = "N/A"
 
-        timestamps = [user.created_at.timestamp()]
-        if is_member: timestamps.append(user.joined_at.timestamp())
+        timestamps = [round(user.created_at.timestamp())]
+        tmp = getattr(user, "joined_at", "N/A")
+        if tmp != "N/A": timestamps.append(round(tmp.timestamp()))
+        else: timestamps.append("N/A")
+
         for i, timestamp in enumerate(timestamps):
-            temp = round(timestamps[i])
-            temp = f"<t:{temp}:R>"
+            if not isinstance(timestamp, int): continue
+            temp = f"<t:{timestamp}:R>"
             timestamps[i] = temp
 
         user_dict = {
@@ -42,8 +52,8 @@ class Information(commands.Cog):
 
             # member info
             "break_line_1": 0,
-            "joined": timestamps[1] or "N/A",
-            "roles": roles_text or "N/A",
+            "joined": timestamps[1],
+            "roles": roles_text,
             # add activity and infractions later
         }
 
@@ -58,8 +68,12 @@ class Information(commands.Cog):
                 continue
             embed_desc += f"{key.title()}: {value}\n"
 
+        if is_member: 
+            title = f"{user.display_name} ({user.name})"
+        else:
+            title = f"{user.name}"
         embedvar = discord.Embed(
-            title = f"{user.display_name} ({user.name})",
+            title = title,
             description = embed_desc,
             color = discord.Color.blue(),
             timestamp = datetime.now(),

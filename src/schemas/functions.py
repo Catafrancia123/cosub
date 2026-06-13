@@ -74,3 +74,19 @@ class Functions():
             await server_log_channel.send(log_text, embed=embedvar)
         await developer_log_channel.send(log_text, embed=embedvar)
         return embedvar
+
+class VersionError(Exception):
+    def __init__(self, python_version, config_version):
+        self.message = f"\nOutdated COSUB version!\n\nmain.py: {python_version}\nconfig.toml: {config_version}\n\nPlease confirm your version of COSUB is the newest by going to the GitHub repository:\nhttps://github.com/Catafrancia123/cosub"
+        super().__init__(self.message)
+
+    def __str__(self):
+        return self.message
+
+class ChecksumMismatchError(Exception):
+    def __init__(self, expected, got):
+        self.message = f"\nChecksum mismatch!\n\nExpected: {expected}\nGot: {got}\n\nPlease confirm your installation of COSUB is true by installing from the GitHub repository:\nhttps://github.com/Catafrancia123/cosub"
+        super().__init__(self.message)
+
+    def __str__(self):
+        return self.message

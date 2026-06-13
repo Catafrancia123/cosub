@@ -8,9 +8,10 @@ from rich import print as rprint
 
 with open("config.toml", "r") as config:
     config_data = toml.load(config)
+    in_testing = config_data["bot_settings"]["in_testing"]
 
 def trusted_bot_admins_check(ctx):
-    trusted_admins = config_data["bot-settings"]["trusted_bot_admins"]
+    trusted_admins = config_data["bot_settings"]["trusted_bot_admins"]
     if ctx.author.id in trusted_admins: 
         print("yes")
         return True
@@ -30,12 +31,12 @@ class Maintenance(commands.Cog):
     @commands.check(trusted_bot_admins_check)
     @commands.command(brief = "Shuts down the bot manually.", aliases=["kill"])
     async def shutdown(self, ctx):
-        is_activated = config_data["bot-settings"]["send_startup_message"]
+        is_activated = config_data["bot_settings"]["send_startup_message"]
         user = ctx.author
         await ctx.reply("Affirmative, self-destructing current instance...")
         rprint(f'[grey]{self.time_format}[/grey] [[cyan1]EVN 01[/cyan1]] Bot shutdown initiated by {user.name}')
        
-        if is_activated:
+        if is_activated and not in_testing:
             startup_embed = discord.Embed(
                 title="Bot Status",
                 description=f"Bot has been shutdown.\nPlease wait for the next startup.",
@@ -70,7 +71,7 @@ class Maintenance(commands.Cog):
         msg_process_time = (datetime.now().timestamp() - ctx.message.created_at.timestamp()) * 1000
         await ctx.reply(f"Bot Latency => {round(self.bot.latency*1000)}ms\nMessage Processing => {round(msg_process_time)}ms")
 
-    @commands.command(brief = "Used to sync commands.", hidden=True)
+    @commands.command(brief = "Used to sync commands.", hidden=True, aliases=["s"])
     @commands.is_owner()
     async def sync(self, ctx):
         user = ctx.author
